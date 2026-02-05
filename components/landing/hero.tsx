@@ -12,10 +12,7 @@ export function Hero() {
     <Section className="pt-12">
       <Container>
         <div className="relative overflow-hidden rounded-[var(--radius)] border border-border bg-surface px-6 py-10 shadow-medium sm:px-10">
-          <div className="pointer-events-none absolute inset-0 bg-accent-gradient" />
-          <div className="pointer-events-none absolute inset-0 opacity-70">
-            <div className="h-full w-full bg-grid" />
-          </div>
+          <div className="pointer-events-none absolute inset-0 bg-accent-gradient opacity-70" />
           <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
               <Badge className="mb-4">Plateforme Congo-Brazzaville</Badge>
@@ -114,8 +111,8 @@ export function Hero() {
                 />
               </div>
             </div>
-            <Card className="relative overflow-hidden border-accent/20 bg-background/80">
-              <div className="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-accent/20" />
+            <Card className="relative overflow-hidden border-accent/10 bg-background/90">
+              <div className="absolute right-0 top-0 h-32 w-32 translate-x-10 -translate-y-10 rounded-full bg-accent/10" />
               <div className="relative space-y-6">
                 <div>
                   <p className="text-sm font-semibold text-accent">Nouveau</p>

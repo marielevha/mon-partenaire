@@ -47,8 +47,7 @@ export function Examples() {
         <div className="grid gap-6 lg:grid-cols-3">
           {examples.map((example) => (
             <Card key={example.title} className="flex flex-col overflow-hidden border-accent/20 p-0">
-              <div className="relative h-44 w-full bg-gradient-to-br from-accent/15 via-accent-secondary/20 to-transparent">
-                <div className="absolute inset-0 bg-grid opacity-60" />
+              <div className="relative h-44 w-full bg-gradient-to-br from-accent/10 via-accent-secondary/15 to-transparent">
                 <div className="relative flex h-full flex-col justify-between p-5">
                   <Badge
                     className={
