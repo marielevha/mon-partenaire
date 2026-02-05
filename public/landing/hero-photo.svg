@@ -1,0 +1,31 @@
+<svg width="1440" height="640" viewBox="0 0 1440 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4F5F9"/>
+      <stop offset="1" stop-color="#DDE0EA"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(360 220) rotate(90) scale(200 300)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(980 200) rotate(90) scale(220 320)">
+      <stop stop-color="#F4F1FF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#F4F1FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1440" height="640" fill="url(#bg)"/>
+  <ellipse cx="360" cy="220" rx="300" ry="200" fill="url(#glow1)"/>
+  <ellipse cx="980" cy="200" rx="320" ry="220" fill="url(#glow2)"/>
+  <rect x="140" y="140" width="320" height="320" rx="24" fill="#F0F2F6"/>
+  <rect x="520" y="120" width="420" height="360" rx="28" fill="#FFFFFF" fill-opacity="0.85"/>
+  <rect x="1000" y="160" width="280" height="300" rx="24" fill="#ECEFF5"/>
+  <rect x="200" y="420" width="360" height="24" rx="12" fill="#C9CDD9"/>
+  <rect x="560" y="420" width="240" height="18" rx="9" fill="#D6DAE6"/>
+  <rect x="820" y="420" width="160" height="18" rx="9" fill="#D6DAE6"/>
+  <circle cx="1080" cy="300" r="64" fill="#FFFFFF"/>
+  <rect x="1040" y="240" width="80" height="120" rx="18" fill="#F7F8FB"/>
+  <circle cx="320" cy="300" r="70" fill="#FFFFFF"/>
+  <rect x="280" y="340" width="80" height="90" rx="18" fill="#F7F8FB"/>
+  <rect x="640" y="180" width="200" height="200" rx="24" fill="#F4F3FF"/>
+  <rect x="660" y="220" width="160" height="20" rx="10" fill="#C8C2FF"/>
+</svg>
