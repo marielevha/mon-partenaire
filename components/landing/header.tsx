@@ -6,7 +6,7 @@ import { cn } from "@/components/ui/utils";
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
       <Container className="flex items-center justify-between py-4">
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-3 text-lg font-semibold">
