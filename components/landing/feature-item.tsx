@@ -17,7 +17,7 @@ export function FeatureItem({
   return (
     <div
       className={cn(
-        "flex items-start gap-4 rounded-[var(--radius)] border border-accent/15 bg-surface/80 p-4",
+        "flex items-start gap-4 rounded-[var(--radius)] border border-border/60 bg-surface/70 p-4 shadow-soft",
         className
       )}
     >
