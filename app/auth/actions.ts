@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 type ActionResult =
   | {
       ok: true;
+      full_name?: string;
     }
   | {
       ok: false;
@@ -27,6 +28,7 @@ export const loginAction = async (
   const email = getValue(formData, "email");
   const password = getValue(formData, "password");
 
+  console.log("Login action called with:", { email, password });
   if (!email || !password) {
     return {
       ok: false,
@@ -34,7 +36,7 @@ export const loginAction = async (
     };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -47,7 +49,29 @@ export const loginAction = async (
     };
   }
 
-  redirect("/app");
+  // Récupérer la session et le profil utilisateur
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user.id) {
+    return {
+      ok: false,
+      message: "Impossible de récupérer les informations de profil.",
+    };
+  }
+
+  // Récupérer le profil depuis la table profiles
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", session.user.id)
+    .single();
+
+  return {
+    ok: true,
+    full_name: profile?.full_name || session.user.user_metadata?.full_name || email,
+  };
 };
 
 export const signupAction = async (
@@ -56,6 +80,7 @@ export const signupAction = async (
 ): Promise<ActionResult> => {
   const fullName = getValue(formData, "name");
   const email = getValue(formData, "email");
+  const phone = getValue(formData, "phone");
   const password = getValue(formData, "password");
 
   if (!fullName || !email || !password) {
@@ -65,13 +90,14 @@ export const signupAction = async (
     };
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         full_name: fullName,
+        phone: phone,
       },
     },
   });
@@ -82,12 +108,20 @@ export const signupAction = async (
       message: "Impossible de créer votre compte pour le moment.",
     };
   }
-
-  redirect("/app/onboarding");
+  // Compte créé — rediriger vers la page de connexion
+  redirect("/auth/login");
 };
 
 export const logoutAction = async (): Promise<void> => {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
   redirect("/auth/login");
+};
+
+export const getSessionAction = async () => {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session;
 };

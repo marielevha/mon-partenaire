@@ -3,9 +3,13 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Container } from "@/components/landing/container";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HeaderClient } from "@/components/landing/header-client";
 import { cn } from "@/components/ui/utils";
+import { getSessionAction } from "@/app/auth/actions";
 
-export function Header() {
+export async function Header() {
+  const session = await getSessionAction();
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
       <Container className="flex items-center justify-between py-4">
@@ -40,20 +44,7 @@ export function Header() {
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <div className="hidden items-center gap-2 sm:flex">
-            <Link
-              href="/auth/login"
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-            >
-              Se connecter
-            </Link>
-            <Link
-              href="/auth/signup"
-              className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
-            >
-              Créer un compte
-            </Link>
-          </div>
+          <HeaderClient initialSession={session} />
         </div>
       </Container>
     </header>
