@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Container } from "@/components/landing/container";
@@ -10,8 +11,15 @@ export function Header() {
       <Container className="flex items-center justify-between py-4">
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-3 text-lg font-semibold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-secondary text-white shadow-soft">
-              MP
+            <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-gradient-to-br from-accent to-accent-secondary text-white shadow-soft">
+              <Image
+                src="/branding-logo.svg"
+                alt="Logo Mon partenaire"
+                width={36}
+                height={36}
+                className="h-8 w-8"
+                priority
+              />
             </span>
             <span className="text-text-primary">Mon partenaire</span>
           </Link>
