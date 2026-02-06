@@ -1,58 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
-import { z } from "zod";
+import { useFormState, useFormStatus } from "react-dom";
 import { AuthCard } from "@/components/auth/auth-card";
 import { AuthLinks } from "@/components/auth/auth-links";
 import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
+import { loginAction } from "@/app/auth/actions";
 
 const inputStyles =
   "h-12 w-full rounded-[calc(var(--radius)_-_8px)] border border-border bg-surface px-4 text-sm text-text-primary shadow-soft transition-colors placeholder:text-text-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [success, setSuccess] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const initialState = null;
 
-  const schema = useMemo(
-    () =>
-      z.object({
-        email: z.string().email("Adresse email invalide."),
-        password: z
-          .string()
-          .min(8, "Mot de passe trop court (8 caractères)."),
-      }),
-    []
+type LoginState = typeof initialState | { ok: false; message: string };
+
+const SubmitButton = () => {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      {pending ? "Connexion..." : "Se connecter"}
+    </Button>
   );
+};
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSuccess(null);
-    const result = schema.safeParse({ email, password });
-    if (!result.success) {
-      const nextErrors: Record<string, string> = {};
-      result.error.issues.forEach((issue) => {
-        const key = issue.path[0];
-        if (typeof key === "string") {
-          nextErrors[key] = issue.message;
-        }
-      });
-      setErrors(nextErrors);
-      return;
-    }
-
-    setErrors({});
-    setIsSubmitting(true);
-    window.setTimeout(() => {
-      setIsSubmitting(false);
-      setSuccess("Connexion validée. Vous allez être redirigé(e).");
-    }, 700);
-  };
+export default function LoginPage() {
+  const [state, formAction] = useFormState<LoginState, FormData>(
+    loginAction,
+    initialState
+  );
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
@@ -79,34 +57,25 @@ export default function LoginPage() {
           },
         ]}
       >
-        <form
-          onSubmit={handleSubmit}
-          className="mx-auto w-full max-w-md space-y-5"
-        >
+        <form action={formAction} className="mx-auto w-full max-w-md space-y-5">
           <label className="flex flex-col gap-2 text-sm text-text-primary">
             <span className="font-medium">Adresse email</span>
             <input
               type="email"
               name="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
               placeholder="prenom@email.com"
               autoComplete="email"
-              className={cn(inputStyles, errors.email && "border-rose-400")}
+              className={cn(inputStyles)}
+              required
             />
-            {errors.email ? (
-              <span className="text-xs text-rose-500">{errors.email}</span>
-            ) : null}
           </label>
 
           <PasswordField
             label="Mot de passe"
             name="password"
-            value={password}
-            onChange={setPassword}
             placeholder="Au moins 8 caractères"
             autoComplete="current-password"
-            error={errors.password}
+            required
           />
 
           <div className="flex items-center justify-between text-sm text-text-secondary">
@@ -119,20 +88,13 @@ export default function LoginPage() {
             <span className="text-xs">Support 7j/7</span>
           </div>
 
-          {success ? (
-            <div className="rounded-[calc(var(--radius)_-_8px)] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-              {success}
+          {state?.ok === false ? (
+            <div className="rounded-[calc(var(--radius)_-_8px)] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+              {state.message}
             </div>
           ) : null}
 
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Connexion..." : "Se connecter"}
-          </Button>
+          <SubmitButton />
 
           <AuthLinks
             text="Pas encore de compte ?"
