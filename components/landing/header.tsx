@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Container } from "@/components/landing/container";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/components/ui/utils";
@@ -42,14 +42,17 @@ export function Header() {
           <ThemeToggle />
           <div className="hidden items-center gap-2 sm:flex">
             <Link
-              href="#"
+              href="/auth/login"
               className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
             >
               Se connecter
             </Link>
-            <Button variant="primary" size="sm">
+            <Link
+              href="/auth/signup"
+              className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
+            >
               Créer un compte
-            </Button>
+            </Link>
           </div>
         </div>
       </Container>

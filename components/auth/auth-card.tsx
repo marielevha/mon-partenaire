@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/components/ui/utils";
 
@@ -32,9 +34,21 @@ export function AuthCard({
         <div className="pointer-events-none absolute inset-0 bg-soft-glow opacity-80" />
         <div className="relative space-y-6">
           <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-text-secondary">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.2em] text-text-secondary transition-colors hover:text-text-primary"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-gradient-to-br from-accent to-accent-secondary text-white shadow-soft">
+                <Image
+                  src="/branding-logo.svg"
+                  alt="Logo Mon partenaire"
+                  width={26}
+                  height={26}
+                  className="h-6 w-6"
+                />
+              </span>
               Mon partenaire
-            </p>
+            </Link>
             <h1 className="text-3xl font-semibold text-text-primary md:text-4xl">
               {sideTitle}
             </h1>

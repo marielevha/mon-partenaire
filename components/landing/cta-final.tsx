@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
@@ -22,9 +22,12 @@ export function CtaFinal() {
                 toute confiance.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button variant="primary" size="lg">
+                <Link
+                  href="/auth/signup"
+                  className={cn(buttonVariants({ variant: "primary", size: "lg" }))}
+                >
                   Créer un compte
-                </Button>
+                </Link>
                 <Link
                   href="#comment-ca-marche"
                   className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
