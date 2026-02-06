@@ -7,10 +7,11 @@ interface PasswordFieldProps {
   label: string;
   name: string;
   placeholder?: string;
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
   error?: string;
   autoComplete?: string;
+  required?: boolean;
 }
 
 export function PasswordField({
@@ -21,6 +22,7 @@ export function PasswordField({
   onChange,
   error,
   autoComplete,
+  required,
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
   const inputId = useId();
@@ -35,8 +37,11 @@ export function PasswordField({
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={
+            onChange ? (event) => onChange(event.target.value) : undefined
+          }
           placeholder={placeholder}
+          required={required}
           className={cn(
             "h-12 w-full rounded-[calc(var(--radius)_-_8px)] border border-border bg-surface px-4 pr-16 text-sm text-text-primary shadow-soft transition-colors placeholder:text-text-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             error && "border-rose-400 focus-visible:ring-rose-300"
