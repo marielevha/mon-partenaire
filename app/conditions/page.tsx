@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/landing/container";
 import { Footer } from "@/components/landing/footer";
+import { Header } from "@/components/landing/header";
 
 export const metadata: Metadata = {
   title: "Conditions générales | Mon partenaire",
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export default function ConditionsPage() {
   return (
     <div className="min-h-screen bg-background text-text-primary">
+      <Header />
       <main className="py-16">
         <Container className="max-w-3xl space-y-10">
           <div className="space-y-4">

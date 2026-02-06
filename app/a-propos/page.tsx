@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Container } from "@/components/landing/container";
 import { Footer } from "@/components/landing/footer";
 import { ContactForm } from "@/src/components/contact/ContactForm";
+import { Header } from "@/components/landing/header";
 
 export const metadata: Metadata = {
   title: "À propos | Mon partenaire",
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-text-primary">
+      <Header />
       <main className="py-16">
         <Container className="max-w-4xl space-y-12">
           <div className="space-y-4">
