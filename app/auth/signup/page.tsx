@@ -1,8 +1,10 @@
 "use client";
 
+import { useFormStatus } from "react-dom";
 import { AuthCard } from "@/components/auth/auth-card";
 import { AuthLinks } from "@/components/auth/auth-links";
 import { SignupForm } from "@/components/auth/signup-form";
+import { Button } from "@/components/ui/button";
 
 const inputStyles =
   "h-12 w-full rounded-[calc(var(--radius)_-_8px)] border border-border bg-surface px-4 text-sm text-text-primary shadow-soft transition-colors placeholder:text-text-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background";

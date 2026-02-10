@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
@@ -54,7 +55,9 @@ export function Examples() {
               Des projets concrets, des besoins précis.
             </h2>
           </div>
-          <Button variant="secondary">Voir tout</Button>
+          <Link href="/projects" className={buttonVariants({ variant: "secondary" })}>
+            Voir tout
+          </Link>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           {projectExamples.map((project) => {

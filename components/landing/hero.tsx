@@ -34,7 +34,7 @@ export function Hero() {
                   Publier un projet
                 </Button>
                 <Link
-                  href="#exemples"
+                  href="/projects"
                   className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
                 >
                   Explorer les projets

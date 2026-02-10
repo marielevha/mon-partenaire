@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectCategory {
+  AGRIBUSINESS
+  TECH
+  HEALTH
+  EDUCATION
+  INFRASTRUCTURE
+  OTHER
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LegalForm {
+  SARL
+  SA
+  AUTOENTREPRENEUR
+  OTHER
+}
+
+enum EquityModel {
+  NONE
+  EQUITY
+  REVENUE_SHARE
+}
+
+enum ProjectVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+model Project {
+  id               String          @id @default(uuid())
+  ownerId          String
+  title            String
+  summary          String
+  description      String
+  category         ProjectCategory
+  subCategory      String?
+  city             String
+  country          String          @default("CG")
+  status           ProjectStatus
+  legalForm        LegalForm?
+  companyCreated   Boolean         @default(false)
+  totalCapital     Int?
+  ownerContribution Int?
+  equityModel      EquityModel
+  equityNote       String?
+  visibility       ProjectVisibility @default(PUBLIC)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  needs ProjectNeed[]
+}
+
+model ProjectNeed {
+  id         String   @id @default(uuid())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  type       String
+  title      String
+  description String?
+  amount     Int?
+  equityShare Int?
+  skillTags  String[] @default([])
+  isFilled   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}

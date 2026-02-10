@@ -14,7 +14,11 @@ const inputStyles =
 
 const initialState = null;
 
-type SignupState = typeof initialState | { ok: false; message: string };
+type ActionResult =
+  | { ok: true; full_name?: string }
+  | { ok: false; message: string };
+
+type SignupState = typeof initialState | ActionResult;
 
 const SubmitButton = () => {
   const { pending } = useFormStatus();
