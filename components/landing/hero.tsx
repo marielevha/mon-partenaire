@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
@@ -30,9 +30,12 @@ export function Hero() {
                 légale.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button variant="primary" size="lg">
+                <Link
+                  href="/dashboard"
+                  className={cn(buttonVariants({ variant: "primary", size: "lg" }))}
+                >
                   Publier un projet
-                </Button>
+                </Link>
                 <Link
                   href="/projects"
                   className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
