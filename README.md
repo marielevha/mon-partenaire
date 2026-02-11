@@ -35,6 +35,28 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - `/conditions` : conditions générales d'utilisation.
 - `/a-propos` : présentation du projet et formulaire de contact.
 
+## Dernières évolutions (Dashboard)
+
+- Dashboard autonome (layout séparé du landing) avec sidebar + topbar.
+- Navigation dashboard structurée : `Vue d'ensemble` et `Créer un projet`.
+- Liste des projets enrichie :
+  - indicateurs clés (totaux, statuts, besoins ouverts, capital cumulé),
+  - pagination configurable (`10`, `25`, `50`, `100`),
+  - actions de statut par projet.
+- Page complète de création de projet avec :
+  - formulaire étendu (catégorie, visibilité, modèle, forme légale, capital),
+  - sections upload images/documents,
+  - spinner sur le bouton de soumission,
+  - pré-remplissage des champs pour faciliter les tests.
+- Thématisation dashboard (clair/sombre) avec bouton de bascule.
+- Dropdown utilisateur topbar :
+  - affichage `full_name` + email,
+  - liens `Dashboard`, `Profil`, `Support`, `Accueil`,
+  - action `Se déconnecter`.
+- Corrections UX/UI :
+  - contraste badges catégorie/statut en mode clair,
+  - harmonisation visuelle globale des composants dashboard.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

@@ -16,6 +16,20 @@
   --shadow-sm: 0 8px 20px rgba(31, 27, 58, 0.08);
   --shadow-md: 0 28px 60px rgba(62, 56, 108, 0.18);
   --transition-base: 220ms ease;
+  --dashboard-bg: #f1f5ff;
+  --dashboard-sidebar: #f8faff;
+  --dashboard-topbar: rgba(255, 255, 255, 0.88);
+  --dashboard-panel: rgba(255, 255, 255, 0.95);
+  --dashboard-panel-soft: rgba(248, 250, 255, 0.95);
+  --dashboard-border: rgba(148, 163, 184, 0.35);
+  --dashboard-text-primary: #0f172a;
+  --dashboard-text-secondary: #334155;
+  --dashboard-text-muted: #64748b;
+  --dashboard-input-bg: rgba(248, 250, 252, 0.96);
+  --dashboard-input-border: rgba(148, 163, 184, 0.52);
+  --dashboard-hover: rgba(99, 102, 241, 0.12);
+  --dashboard-danger: #dc2626;
+  --dashboard-danger-soft: rgba(220, 38, 38, 0.1);
 }
 
 .dark {
@@ -32,6 +46,20 @@
   --accent-soft: rgba(139, 123, 255, 0.2);
   --shadow-sm: 0 8px 20px rgba(8, 8, 24, 0.35);
   --shadow-md: 0 28px 60px rgba(8, 8, 24, 0.5);
+  --dashboard-bg: #0a1020;
+  --dashboard-sidebar: #0b1730;
+  --dashboard-topbar: rgba(13, 26, 52, 0.88);
+  --dashboard-panel: rgba(15, 23, 42, 0.72);
+  --dashboard-panel-soft: rgba(13, 26, 52, 0.72);
+  --dashboard-border: rgba(51, 65, 85, 0.75);
+  --dashboard-text-primary: #f1f5f9;
+  --dashboard-text-secondary: #cbd5e1;
+  --dashboard-text-muted: #94a3b8;
+  --dashboard-input-bg: rgba(15, 23, 42, 0.75);
+  --dashboard-input-border: rgba(71, 85, 105, 0.75);
+  --dashboard-hover: rgba(99, 102, 241, 0.22);
+  --dashboard-danger: #fca5a5;
+  --dashboard-danger-soft: rgba(244, 63, 94, 0.16);
 }
 
 @theme inline {
@@ -106,5 +134,109 @@
     background-image: radial-gradient(circle at top, rgba(255, 255, 255, 0.85), transparent 55%),
       radial-gradient(circle at 20% 20%, rgba(139, 123, 255, 0.25), transparent 45%),
       radial-gradient(circle at 80% 60%, rgba(109, 94, 252, 0.2), transparent 40%);
+  }
+
+  .dashboard-shell {
+    background: var(--dashboard-bg);
+    color: var(--dashboard-text-primary);
+    transition: background-color var(--transition-base), color var(--transition-base);
+  }
+
+  .dashboard-sidebar {
+    border-color: var(--dashboard-border);
+    background: var(--dashboard-sidebar);
+  }
+
+  .dashboard-topbar {
+    border-color: var(--dashboard-border);
+    background: var(--dashboard-topbar);
+  }
+
+  .dashboard-panel {
+    border: 1px solid var(--dashboard-border);
+    background: var(--dashboard-panel);
+  }
+
+  .dashboard-panel-soft {
+    border: 1px solid var(--dashboard-border);
+    background: var(--dashboard-panel-soft);
+  }
+
+  .dashboard-divider {
+    border-color: var(--dashboard-border);
+  }
+
+  .dashboard-muted {
+    color: var(--dashboard-text-secondary);
+  }
+
+  .dashboard-strong {
+    color: var(--dashboard-text-primary);
+  }
+
+  .dashboard-faint {
+    color: var(--dashboard-text-muted);
+  }
+
+  .dashboard-input {
+    border: 1px solid var(--dashboard-input-border);
+    background: var(--dashboard-input-bg);
+    color: var(--dashboard-text-primary);
+  }
+
+  .dashboard-input::placeholder {
+    color: var(--dashboard-text-muted);
+  }
+
+  .dashboard-icon-btn {
+    border: 1px solid var(--dashboard-input-border);
+    background: var(--dashboard-input-bg);
+    color: var(--dashboard-text-secondary);
+  }
+
+  .dashboard-icon-btn:hover {
+    border-color: var(--accent-secondary);
+    color: var(--dashboard-text-primary);
+  }
+
+  .dashboard-nav-item {
+    color: var(--dashboard-text-secondary);
+  }
+
+  .dashboard-nav-item:hover {
+    background: var(--dashboard-hover);
+    color: var(--dashboard-text-primary);
+  }
+
+  .dashboard-nav-item-active {
+    background: var(--dashboard-hover);
+    color: var(--accent);
+  }
+
+  .dashboard-btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .dashboard-btn-primary:hover {
+    background: var(--accent-strong);
+  }
+
+  .dashboard-btn-secondary {
+    border: 1px solid var(--dashboard-input-border);
+    background: var(--dashboard-input-bg);
+    color: var(--dashboard-text-primary);
+  }
+
+  .dashboard-btn-secondary:hover {
+    background: var(--dashboard-hover);
+  }
+
+  .dashboard-danger {
+    color: var(--dashboard-danger);
+  }
+
+  .dashboard-danger-soft:hover {
+    background: var(--dashboard-danger-soft);
   }
 }

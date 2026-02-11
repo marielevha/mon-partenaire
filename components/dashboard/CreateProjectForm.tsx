@@ -12,9 +12,27 @@ import { cn } from "@/components/ui/utils";
 const initialState: CreateProjectState = null;
 
 const inputStyles =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+  "dashboard-input w-full rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45";
 const fileInputStyles =
-  "w-full rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm text-text-primary shadow-soft file:mr-3 file:rounded-md file:border-0 file:bg-accent/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent hover:file:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+  "dashboard-input w-full rounded-lg border-dashed px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-accent/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent hover:file:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45";
+
+const PREFILL_VALUES = {
+  title: "Atelier agroalimentaire de proximité",
+  city: "Brazzaville",
+  summary:
+    "Un atelier local de transformation des fruits avec distribution B2B aux commerces de quartier.",
+  description:
+    "Le projet vise à créer un atelier agroalimentaire semi-industriel capable de transformer des fruits locaux en jus et confitures. Le modèle combine des contrats d'approvisionnement avec des producteurs, un circuit de distribution court vers des supérettes partenaires, et un plan de montée en capacité sur 18 mois. Le besoin immédiat porte sur l'équipement, la logistique froide et l'encadrement qualité.",
+  category: "AGRIBUSINESS",
+  equityModel: "EQUITY",
+  visibility: "PUBLIC",
+  legalForm: "SARL",
+  totalCapital: "12000000",
+  ownerContribution: "3000000",
+  equityNote:
+    "Ouvert à un partenaire opérationnel et financier avec gouvernance progressive.",
+  companyCreated: true,
+} as const;
 
 const CITY_OPTIONS = [
   "Brazzaville",
@@ -38,9 +56,37 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-strong disabled:opacity-60"
+      className="dashboard-btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-60"
     >
-      {pending ? "Création..." : "Créer le projet"}
+      {pending ? (
+        <>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="h-4 w-4 animate-spin"
+            fill="none"
+          >
+            <circle
+              cx="10"
+              cy="10"
+              r="7"
+              className="opacity-25"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M17 10a7 7 0 0 0-7-7"
+              className="opacity-90"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>Création...</span>
+        </>
+      ) : (
+        "Créer le projet"
+      )}
     </button>
   );
 }
@@ -59,25 +105,30 @@ export function CreateProjectForm() {
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
+      <p className="dashboard-faint rounded-lg border border-dashed border-accent/35 bg-accent/10 px-3 py-2 text-xs">
+        Champs pré-remplis en mode test. Modifiez les valeurs avant publication.
+      </p>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Titre</span>
+          <span className="dashboard-faint">Titre</span>
           <input
             name="title"
+            defaultValue={PREFILL_VALUES.title}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.title && "border-rose-400")}
             placeholder="Ex: Usine de transformation locale"
             required
           />
           {state?.ok === false && state.fieldErrors?.title ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.title}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.title}</p>
           ) : null}
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Ville</span>
+          <span className="dashboard-faint">Ville</span>
           <select
             name="city"
-            defaultValue=""
+            defaultValue={PREFILL_VALUES.city}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.city && "border-rose-400")}
             required
           >
@@ -91,44 +142,46 @@ export function CreateProjectForm() {
             ))}
           </select>
           {state?.ok === false && state.fieldErrors?.city ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.city}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.city}</p>
           ) : null}
         </label>
       </div>
 
       <label className="space-y-1 text-sm">
-        <span className="text-text-secondary">Résumé</span>
+        <span className="dashboard-faint">Résumé</span>
         <textarea
           name="summary"
+          defaultValue={PREFILL_VALUES.summary}
           className={cn(inputStyles, "min-h-[84px]", state?.ok === false && state.fieldErrors?.summary && "border-rose-400")}
           placeholder="Décrivez le positionnement du projet en quelques lignes."
           required
         />
         {state?.ok === false && state.fieldErrors?.summary ? (
-          <p className="text-xs text-rose-600">{state.fieldErrors.summary}</p>
+          <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.summary}</p>
         ) : null}
       </label>
 
       <label className="space-y-1 text-sm">
-        <span className="text-text-secondary">Description complète</span>
+        <span className="dashboard-faint">Description complète</span>
         <textarea
           name="description"
+          defaultValue={PREFILL_VALUES.description}
           className={cn(inputStyles, "min-h-[150px]", state?.ok === false && state.fieldErrors?.description && "border-rose-400")}
           placeholder="Objectif, marché, modèle économique, équipe, jalons..."
           required
         />
         {state?.ok === false && state.fieldErrors?.description ? (
-          <p className="text-xs text-rose-600">{state.fieldErrors.description}</p>
+          <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.description}</p>
         ) : null}
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Catégorie</span>
+          <span className="dashboard-faint">Catégorie</span>
           <select
             name="category"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.category && "border-rose-400")}
-            defaultValue="TECH"
+            defaultValue={PREFILL_VALUES.category}
           >
             <option value="AGRIBUSINESS">Agribusiness</option>
             <option value="TECH">Tech</option>
@@ -138,44 +191,44 @@ export function CreateProjectForm() {
             <option value="OTHER">Autre</option>
           </select>
           {state?.ok === false && state.fieldErrors?.category ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.category}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.category}</p>
           ) : null}
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Modèle</span>
+          <span className="dashboard-faint">Modèle</span>
           <select
             name="equityModel"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.equityModel && "border-rose-400")}
-            defaultValue="EQUITY"
+            defaultValue={PREFILL_VALUES.equityModel}
           >
             <option value="NONE">Sans equity</option>
             <option value="EQUITY">Part en capital</option>
             <option value="REVENUE_SHARE">Partage de revenus</option>
           </select>
           {state?.ok === false && state.fieldErrors?.equityModel ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.equityModel}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.equityModel}</p>
           ) : null}
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Visibilité</span>
+          <span className="dashboard-faint">Visibilité</span>
           <select
             name="visibility"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.visibility && "border-rose-400")}
-            defaultValue="PUBLIC"
+            defaultValue={PREFILL_VALUES.visibility}
           >
             <option value="PUBLIC">Public</option>
             <option value="PRIVATE">Privé</option>
           </select>
           {state?.ok === false && state.fieldErrors?.visibility ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.visibility}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.visibility}</p>
           ) : null}
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Forme légale</span>
-          <select name="legalForm" className={inputStyles} defaultValue="">
+          <span className="dashboard-faint">Forme légale</span>
+          <select name="legalForm" className={inputStyles} defaultValue={PREFILL_VALUES.legalForm}>
             <option value="">Non définie</option>
             <option value="SARL">SARL</option>
             <option value="SA">SA</option>
@@ -187,54 +240,57 @@ export function CreateProjectForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Capital total recherché (FCFA)</span>
+          <span className="dashboard-faint">Capital total recherché (FCFA)</span>
           <input
             name="totalCapital"
             type="number"
             min="0"
             step="1000"
+            defaultValue={PREFILL_VALUES.totalCapital}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.totalCapital && "border-rose-400")}
             placeholder="12000000"
           />
           {state?.ok === false && state.fieldErrors?.totalCapital ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.totalCapital}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.totalCapital}</p>
           ) : null}
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="text-text-secondary">Apport du porteur (FCFA)</span>
+          <span className="dashboard-faint">Apport du porteur (FCFA)</span>
           <input
             name="ownerContribution"
             type="number"
             min="0"
             step="1000"
+            defaultValue={PREFILL_VALUES.ownerContribution}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.ownerContribution && "border-rose-400")}
             placeholder="3000000"
           />
           {state?.ok === false && state.fieldErrors?.ownerContribution ? (
-            <p className="text-xs text-rose-600">{state.fieldErrors.ownerContribution}</p>
+            <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.ownerContribution}</p>
           ) : null}
         </label>
       </div>
 
       <label className="space-y-1 text-sm">
-        <span className="text-text-secondary">Note sur le partenariat (optionnel)</span>
+        <span className="dashboard-faint">Note sur le partenariat (optionnel)</span>
         <textarea
           name="equityNote"
+          defaultValue={PREFILL_VALUES.equityNote}
           className={cn(inputStyles, "min-h-[90px]")}
           placeholder="Ex: Ouvert à une gouvernance partagée et à un pacte d'associés progressif."
         />
       </label>
 
-      <div className="rounded-md border border-border/60 bg-surface-accent/45 p-4">
-        <h3 className="text-sm font-semibold text-text-primary">Médias du projet</h3>
-        <p className="mt-1 text-xs text-text-secondary">
+      <div className="dashboard-panel-soft rounded-xl p-4">
+        <h3 className="text-sm font-semibold">Médias du projet</h3>
+        <p className="dashboard-faint mt-1 text-xs">
           Ajoutez des visuels pour renforcer la crédibilité de votre annonce.
         </p>
 
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className="text-text-secondary">Images (JPG, PNG, WEBP)</span>
+            <span className="dashboard-faint">Images (JPG, PNG, WEBP)</span>
             <input
               type="file"
               name="projectImages"
@@ -242,13 +298,13 @@ export function CreateProjectForm() {
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
               className={fileInputStyles}
             />
-            <p className="text-xs text-text-secondary">
+            <p className="dashboard-faint text-xs">
               Jusqu&apos;à 10 images recommandées.
             </p>
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-text-secondary">Documents</span>
+            <span className="dashboard-faint">Documents</span>
             <input
               type="file"
               name="projectDocuments"
@@ -256,16 +312,21 @@ export function CreateProjectForm() {
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
               className={fileInputStyles}
             />
-            <p className="text-xs text-text-secondary">
+            <p className="dashboard-faint text-xs">
               Pitch deck, business plan, étude de marché, etc.
             </p>
           </label>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-surface-accent/60 px-4 py-3">
-        <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
-          <input type="checkbox" name="companyCreated" className="h-4 w-4" />
+      <div className="dashboard-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3">
+        <label className="dashboard-faint inline-flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="companyCreated"
+            defaultChecked={PREFILL_VALUES.companyCreated}
+            className="h-4 w-4 rounded border-slate-400 bg-transparent text-accent focus:ring-accent/45"
+          />
           Entreprise déjà créée
         </label>
 
@@ -275,7 +336,7 @@ export function CreateProjectForm() {
           {state?.ok ? (
             <Link
               href={`/projects/${state.projectId}`}
-              className="rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-text-primary transition-colors hover:bg-surface"
+              className="dashboard-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
             >
               Voir le projet
             </Link>
@@ -285,13 +346,13 @@ export function CreateProjectForm() {
       </div>
 
       {state?.ok === false ? (
-        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="rounded-lg border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-200">
           {state.message}
         </p>
       ) : null}
 
       {state?.ok ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-lg border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-200">
           {state.message}
         </p>
       ) : null}
