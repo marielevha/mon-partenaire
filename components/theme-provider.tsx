@@ -18,22 +18,31 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+const defaultThemeContext: ThemeContextValue = {
+  theme: "system",
+  resolvedTheme: "light",
+  setTheme: () => {},
+  toggleTheme: () => {},
+};
+
+const ThemeContext = createContext<ThemeContextValue>(defaultThemeContext);
 
 const themeStorageKey = "theme";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "system";
+    }
+    const storedTheme = window.localStorage.getItem(themeStorageKey);
+    if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+      return storedTheme;
+    }
+    return "system";
+  });
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
     "light"
   );
-
-  useEffect(() => {
-    const storedTheme = window.localStorage.getItem(themeStorageKey);
-    if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
-      setTheme(storedTheme);
-    }
-  }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -68,9 +77,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("useTheme must be used within ThemeProvider");
-  }
-  return context;
+  return useContext(ThemeContext);
 }

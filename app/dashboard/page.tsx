@@ -7,7 +7,6 @@ import { Header } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
 import { Card } from "@/components/ui/card";
 import { ProjectBadge } from "@/components/projects/ProjectBadge";
-import { CreateProjectForm } from "@/components/dashboard/CreateProjectForm";
 import { updateProjectStatusAction } from "@/app/dashboard/actions";
 
 export const metadata: Metadata = {
@@ -53,6 +52,12 @@ type DashboardProject = {
   needs: DashboardNeed[];
 };
 
+type DashboardPageProps = {
+  searchParams?: { [key: string]: string | string[] | undefined };
+};
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
 function formatMoney(amount?: number | null) {
   if (!amount && amount !== 0) return "—";
   return `${amount.toLocaleString("fr-FR")} FCFA`;
@@ -66,7 +71,11 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
-export default async function DashboardPage() {
+function createDashboardHref(page: number, limit: number) {
+  return `/dashboard?page=${page}&limit=${limit}`;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
@@ -76,10 +85,32 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const pageParam =
+    typeof resolvedSearchParams?.page === "string"
+      ? Number.parseInt(resolvedSearchParams.page, 10)
+      : 1;
+  const limitParam =
+    typeof resolvedSearchParams?.limit === "string"
+      ? Number.parseInt(resolvedSearchParams.limit, 10)
+      : 10;
+
+  const currentPage = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const itemsPerPage = ITEMS_PER_PAGE_OPTIONS.includes(limitParam) ? limitParam : 10;
+
+  const where = {
+    ownerId: session.user.id,
+  };
+
+  const totalProjects = await prisma.project.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalProjects / itemsPerPage));
+
+  if (currentPage > totalPages) {
+    redirect(createDashboardHref(totalPages, itemsPerPage));
+  }
+
   const projects = (await prisma.project.findMany({
-    where: {
-      ownerId: session.user.id,
-    },
+    where,
     include: {
       needs: {
         select: {
@@ -91,23 +122,57 @@ export default async function DashboardPage() {
     orderBy: {
       updatedAt: "desc",
     },
+    skip: (currentPage - 1) * itemsPerPage,
+    take: itemsPerPage,
   })) as DashboardProject[];
 
-  const totalProjects = projects.length;
-  const publishedProjects = projects.filter((project) => project.status === "PUBLISHED").length;
-  const draftProjects = projects.filter((project) => project.status === "DRAFT").length;
-  const archivedProjects = projects.filter((project) => project.status === "ARCHIVED").length;
+  const statusCounts = await prisma.project.groupBy({
+    by: ["status"],
+    where,
+    _count: {
+      _all: true,
+    },
+  });
 
-  const totalCapital = projects.reduce((sum, project) => sum + (project.totalCapital ?? 0), 0);
-  const openNeeds = projects.reduce(
-    (sum, project) => sum + project.needs.filter((need) => !need.isFilled).length,
-    0
-  );
+  const publishedProjects =
+    statusCounts.find((item) => item.status === "PUBLISHED")?._count._all ?? 0;
+  const draftProjects =
+    statusCounts.find((item) => item.status === "DRAFT")?._count._all ?? 0;
+  const archivedProjects =
+    statusCounts.find((item) => item.status === "ARCHIVED")?._count._all ?? 0;
+
+  const capitalAggregate = await prisma.project.aggregate({
+    where,
+    _sum: {
+      totalCapital: true,
+    },
+  });
+  const totalCapital = capitalAggregate._sum.totalCapital ?? 0;
+
+  const openNeeds = await prisma.projectNeed.count({
+    where: {
+      isFilled: false,
+      project: {
+        ownerId: session.user.id,
+      },
+    },
+  });
 
   const fullName =
     typeof session.user.user_metadata?.full_name === "string"
       ? session.user.user_metadata.full_name
       : session.user.email;
+
+  const visiblePageCount = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(visiblePageCount / 2));
+  const endPage = Math.min(totalPages, startPage + visiblePageCount - 1);
+  if (endPage - startPage + 1 < visiblePageCount) {
+    startPage = Math.max(1, endPage - visiblePageCount + 1);
+  }
+  const visiblePages = Array.from(
+    { length: endPage - startPage + 1 },
+    (_, index) => startPage + index
+  );
 
   return (
     <>
@@ -123,24 +188,18 @@ export default async function DashboardPage() {
                   <p className="mt-1 text-sm font-semibold text-text-primary">{fullName}</p>
                 </div>
                 <nav className="space-y-1 p-3 text-sm">
-                  <a
-                    href="#overview"
-                    className="block rounded-md px-3 py-2 font-medium text-text-primary transition-colors hover:bg-surface-accent"
+                  <Link
+                    href="/dashboard"
+                    className="block rounded-md bg-accent/10 px-3 py-2 font-medium text-accent"
                   >
                     Vue d&apos;ensemble
-                  </a>
-                  <a
-                    href="#create-project"
+                  </Link>
+                  <Link
+                    href="/dashboard/projects/new"
                     className="block rounded-md px-3 py-2 font-medium text-text-primary transition-colors hover:bg-surface-accent"
                   >
                     Créer un projet
-                  </a>
-                  <a
-                    href="#projects-list"
-                    className="block rounded-md px-3 py-2 font-medium text-text-primary transition-colors hover:bg-surface-accent"
-                  >
-                    Mes projets
-                  </a>
+                  </Link>
                 </nav>
               </Card>
 
@@ -180,37 +239,25 @@ export default async function DashboardPage() {
                 </Card>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-                <Card id="create-project" className="p-6">
-                  <div className="mb-4">
-                    <h2 className="text-xl font-semibold">Créer un projet</h2>
-                    <p className="mt-1 text-sm text-text-secondary">
-                      Le projet est créé en brouillon. Vous pouvez ensuite le publier depuis la liste ci-dessous.
+              <Card className="p-6">
+                <h2 className="text-xl font-semibold">Suivi rapide</h2>
+                <div className="mt-4 grid gap-4 text-sm md:grid-cols-3">
+                  <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
+                    <p className="text-xs uppercase tracking-wide text-text-secondary">Capital cumulé visé</p>
+                    <p className="mt-2 text-xl font-semibold text-accent">{formatMoney(totalCapital)}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
+                    <p className="text-xs uppercase tracking-wide text-text-secondary">Projets archivés</p>
+                    <p className="mt-2 text-xl font-semibold">{archivedProjects}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
+                    <p className="text-xs uppercase tracking-wide text-text-secondary">Action recommandée</p>
+                    <p className="mt-2 text-text-secondary">
+                      Publiez un projet avec un résumé clair et des besoins précis pour accélérer les prises de contact.
                     </p>
                   </div>
-                  <CreateProjectForm />
-                </Card>
-
-                <Card className="p-6">
-                  <h2 className="text-xl font-semibold">Suivi rapide</h2>
-                  <div className="mt-4 space-y-4 text-sm">
-                    <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
-                      <p className="text-xs uppercase tracking-wide text-text-secondary">Capital cumulé visé</p>
-                      <p className="mt-2 text-xl font-semibold text-accent">{formatMoney(totalCapital)}</p>
-                    </div>
-                    <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
-                      <p className="text-xs uppercase tracking-wide text-text-secondary">Projets archivés</p>
-                      <p className="mt-2 text-xl font-semibold">{archivedProjects}</p>
-                    </div>
-                    <div className="rounded-md border border-border/60 bg-surface-accent/60 p-4">
-                      <p className="text-xs uppercase tracking-wide text-text-secondary">Action recommandée</p>
-                      <p className="mt-2 text-text-secondary">
-                        Publiez un projet avec un résumé clair et des besoins précis pour accélérer les prises de contact.
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </div>
+                </div>
+              </Card>
 
               <Card id="projects-list" className="p-6">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -225,93 +272,194 @@ export default async function DashboardPage() {
                 {projects.length === 0 ? (
                   <div className="rounded-md border border-dashed border-border p-8 text-center">
                     <p className="text-sm text-text-secondary">
-                      Aucun projet pour le moment. Commencez par en créer un dans la section ci-dessus.
+                      Aucun projet pour le moment.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {projects.map((project) => {
-                      const totalNeedsByProject = project.needs.length;
-                      const filledNeedsByProject = project.needs.filter((need) => need.isFilled).length;
-                      const projectProgress =
-                        totalNeedsByProject > 0
-                          ? Math.round((filledNeedsByProject / totalNeedsByProject) * 100)
-                          : 0;
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      {projects.map((project) => {
+                        const totalNeedsByProject = project.needs.length;
+                        const filledNeedsByProject = project.needs.filter((need) => need.isFilled).length;
+                        const projectProgress =
+                          totalNeedsByProject > 0
+                            ? Math.round((filledNeedsByProject / totalNeedsByProject) * 100)
+                            : 0;
 
-                      return (
-                        <div
-                          key={project.id}
-                          className="rounded-md border border-border/60 bg-background/70 p-4"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-base font-semibold text-text-primary">{project.title}</p>
-                                <ProjectBadge>
-                                  {categoryLabels[project.category] ?? project.category}
-                                </ProjectBadge>
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses[project.status] ?? "bg-slate-500/10 text-slate-600"}`}
+                        return (
+                          <div
+                            key={project.id}
+                            className="rounded-md border border-border/60 bg-background/70 p-4"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-base font-semibold text-text-primary">{project.title}</p>
+                                  <ProjectBadge>
+                                    {categoryLabels[project.category] ?? project.category}
+                                  </ProjectBadge>
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses[project.status] ?? "bg-slate-500/10 text-slate-600"}`}
+                                  >
+                                    {statusLabels[project.status] ?? project.status}
+                                  </span>
+                                </div>
+
+                                <p className="max-w-2xl text-sm text-text-secondary">{project.summary}</p>
+
+                                <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary">
+                                  <span>{project.city}</span>
+                                  <span>Mis à jour le {formatDate(project.updatedAt)}</span>
+                                  <span>Capital: {formatMoney(project.totalCapital)}</span>
+                                </div>
+                              </div>
+
+                              <div className="w-full max-w-xs space-y-2 text-sm">
+                                <div className="flex items-center justify-between text-xs text-text-secondary">
+                                  <span>Progression besoins</span>
+                                  <span>{projectProgress}%</span>
+                                </div>
+                                <div className="h-2 w-full rounded-full bg-border/50">
+                                  <div
+                                    className="h-2 rounded-full bg-accent"
+                                    style={{ width: `${projectProgress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/projects/${project.id}`}
+                                  className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-accent"
                                 >
-                                  {statusLabels[project.status] ?? project.status}
-                                </span>
+                                  Voir page publique
+                                </Link>
                               </div>
 
-                              <p className="max-w-2xl text-sm text-text-secondary">{project.summary}</p>
-
-                              <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary">
-                                <span>{project.city}</span>
-                                <span>Mis à jour le {formatDate(project.updatedAt)}</span>
-                                <span>Capital: {formatMoney(project.totalCapital)}</span>
-                              </div>
-                            </div>
-
-                            <div className="w-full max-w-xs space-y-2 text-sm">
-                              <div className="flex items-center justify-between text-xs text-text-secondary">
-                                <span>Progression besoins</span>
-                                <span>{projectProgress}%</span>
-                              </div>
-                              <div className="h-2 w-full rounded-full bg-border/50">
-                                <div
-                                  className="h-2 rounded-full bg-accent"
-                                  style={{ width: `${projectProgress}%` }}
-                                />
-                              </div>
+                              <form action={updateProjectStatusAction} className="flex items-center gap-2">
+                                <input type="hidden" name="projectId" value={project.id} />
+                                <select
+                                  name="status"
+                                  defaultValue={project.status}
+                                  className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                                >
+                                  <option value="DRAFT">Brouillon</option>
+                                  <option value="PUBLISHED">Publié</option>
+                                  <option value="ARCHIVED">Archivé</option>
+                                </select>
+                                <button
+                                  type="submit"
+                                  className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-strong"
+                                >
+                                  Mettre à jour
+                                </button>
+                              </form>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
-                            <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-4 border-t border-border/60 pt-4 md:flex-row md:items-center md:justify-between">
+                      <form method="get" className="flex items-center gap-2">
+                        <input type="hidden" name="page" value="1" />
+                        <label className="text-sm text-text-secondary" htmlFor="limit">
+                          Éléments par page
+                        </label>
+                        <select
+                          id="limit"
+                          name="limit"
+                          defaultValue={String(itemsPerPage)}
+                          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                        >
+                          {ITEMS_PER_PAGE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text-primary transition-colors hover:bg-surface-accent"
+                        >
+                          Appliquer
+                        </button>
+                      </form>
+
+                      {totalPages > 1 ? (
+                        <div className="flex items-center gap-2">
+                          {currentPage > 1 ? (
+                            <Link
+                              href={createDashboardHref(currentPage - 1, itemsPerPage)}
+                              className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-sm font-medium text-text-primary transition-colors hover:bg-surface"
+                            >
+                              ←
+                            </Link>
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 bg-background text-sm text-text-secondary/50">
+                              ←
+                            </div>
+                          )}
+
+                          {visiblePages[0] > 1 ? (
+                            <>
                               <Link
-                                href={`/projects/${project.id}`}
-                                className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text-primary transition-colors hover:bg-surface-accent"
+                                href={createDashboardHref(1, itemsPerPage)}
+                                className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-sm font-medium text-text-primary transition-colors hover:bg-surface"
                               >
-                                Voir page publique
+                                1
                               </Link>
-                            </div>
+                              {visiblePages[0] > 2 ? (
+                                <span className="px-1 text-text-secondary">...</span>
+                              ) : null}
+                            </>
+                          ) : null}
 
-                            <form action={updateProjectStatusAction} className="flex items-center gap-2">
-                              <input type="hidden" name="projectId" value={project.id} />
-                              <select
-                                name="status"
-                                defaultValue={project.status}
-                                className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                          {visiblePages.map((page) => (
+                            <Link
+                              key={page}
+                              href={createDashboardHref(page, itemsPerPage)}
+                              className={`flex h-9 w-9 items-center justify-center rounded-md border text-sm font-medium transition-colors ${
+                                page === currentPage
+                                  ? "border-accent bg-accent text-white"
+                                  : "border-border bg-background text-text-primary hover:bg-surface"
+                              }`}
+                            >
+                              {page}
+                            </Link>
+                          ))}
+
+                          {visiblePages[visiblePages.length - 1] < totalPages ? (
+                            <>
+                              {visiblePages[visiblePages.length - 1] < totalPages - 1 ? (
+                                <span className="px-1 text-text-secondary">...</span>
+                              ) : null}
+                              <Link
+                                href={createDashboardHref(totalPages, itemsPerPage)}
+                                className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-sm font-medium text-text-primary transition-colors hover:bg-surface"
                               >
-                                <option value="DRAFT">Brouillon</option>
-                                <option value="PUBLISHED">Publié</option>
-                                <option value="ARCHIVED">Archivé</option>
-                              </select>
-                              <button
-                                type="submit"
-                                className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-strong"
-                              >
-                                Mettre à jour
-                              </button>
-                            </form>
-                          </div>
+                                {totalPages}
+                              </Link>
+                            </>
+                          ) : null}
+
+                          {currentPage < totalPages ? (
+                            <Link
+                              href={createDashboardHref(currentPage + 1, itemsPerPage)}
+                              className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-sm font-medium text-text-primary transition-colors hover:bg-surface"
+                            >
+                              →
+                            </Link>
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-md border border-border/40 bg-background text-sm text-text-secondary/50">
+                              →
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                      ) : null}
+                    </div>
                   </div>
                 )}
               </Card>

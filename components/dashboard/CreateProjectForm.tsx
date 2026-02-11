@@ -13,6 +13,23 @@ const initialState: CreateProjectState = null;
 
 const inputStyles =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+const fileInputStyles =
+  "w-full rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm text-text-primary shadow-soft file:mr-3 file:rounded-md file:border-0 file:bg-accent/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent hover:file:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+
+const CITY_OPTIONS = [
+  "Brazzaville",
+  "Pointe-Noire",
+  "Dolisie",
+  "Nkayi",
+  "Owando",
+  "Ouesso",
+  "Oyo",
+  "Impfondo",
+  "Sibiti",
+  "Kinkala",
+  "Mossendjo",
+  "Autre",
+];
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -58,12 +75,21 @@ export function CreateProjectForm() {
 
         <label className="space-y-1 text-sm">
           <span className="text-text-secondary">Ville</span>
-          <input
+          <select
             name="city"
+            defaultValue=""
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.city && "border-rose-400")}
-            placeholder="Brazzaville"
             required
-          />
+          >
+            <option value="" disabled>
+              Sélectionner une ville
+            </option>
+            {CITY_OPTIONS.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
           {state?.ok === false && state.fieldErrors?.city ? (
             <p className="text-xs text-rose-600">{state.fieldErrors.city}</p>
           ) : null}
@@ -199,6 +225,43 @@ export function CreateProjectForm() {
           placeholder="Ex: Ouvert à une gouvernance partagée et à un pacte d'associés progressif."
         />
       </label>
+
+      <div className="rounded-md border border-border/60 bg-surface-accent/45 p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Médias du projet</h3>
+        <p className="mt-1 text-xs text-text-secondary">
+          Ajoutez des visuels pour renforcer la crédibilité de votre annonce.
+        </p>
+
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <label className="space-y-1 text-sm">
+            <span className="text-text-secondary">Images (JPG, PNG, WEBP)</span>
+            <input
+              type="file"
+              name="projectImages"
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className={fileInputStyles}
+            />
+            <p className="text-xs text-text-secondary">
+              Jusqu&apos;à 10 images recommandées.
+            </p>
+          </label>
+
+          <label className="space-y-1 text-sm">
+            <span className="text-text-secondary">Documents</span>
+            <input
+              type="file"
+              name="projectDocuments"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              className={fileInputStyles}
+            />
+            <p className="text-xs text-text-secondary">
+              Pitch deck, business plan, étude de marché, etc.
+            </p>
+          </label>
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-surface-accent/60 px-4 py-3">
         <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
