@@ -36,6 +36,23 @@ const statusClasses: Record<string, string> = {
   ARCHIVED: "bg-slate-500/10 text-slate-600",
 };
 
+type DashboardNeed = {
+  id: string;
+  isFilled: boolean;
+};
+
+type DashboardProject = {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  city: string;
+  status: string;
+  totalCapital: number | null;
+  updatedAt: Date;
+  needs: DashboardNeed[];
+};
+
 function formatMoney(amount?: number | null) {
   if (!amount && amount !== 0) return "—";
   return `${amount.toLocaleString("fr-FR")} FCFA`;
@@ -59,7 +76,7 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  const projects = await prisma.project.findMany({
+  const projects = (await prisma.project.findMany({
     where: {
       ownerId: session.user.id,
     },
@@ -74,7 +91,7 @@ export default async function DashboardPage() {
     orderBy: {
       updatedAt: "desc",
     },
-  });
+  })) as DashboardProject[];
 
   const totalProjects = projects.length;
   const publishedProjects = projects.filter((project) => project.status === "PUBLISHED").length;
