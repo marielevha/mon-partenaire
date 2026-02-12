@@ -24,7 +24,7 @@ CREATE TABLE "Project" (
     "subCategory" TEXT,
     "city" TEXT NOT NULL,
     "country" TEXT NOT NULL DEFAULT 'CG',
-    "status" "ProjectStatus" NOT NULL,
+    "status" "ProjectStatus" NOT NULL DEFAULT 'DRAFT',
     "legalForm" "LegalForm",
     "companyCreated" BOOLEAN NOT NULL DEFAULT false,
     "totalCapital" INTEGER,
@@ -54,6 +54,27 @@ CREATE TABLE "ProjectNeed" (
     CONSTRAINT "ProjectNeed_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ProjectImage" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "storagePath" TEXT NOT NULL,
+    "alt" TEXT,
+    "isCover" BOOLEAN NOT NULL DEFAULT false,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ProjectImage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectImage_storagePath_key" ON "ProjectImage"("storagePath");
+
+-- CreateIndex
+CREATE INDEX "ProjectImage_projectId_sortOrder_idx" ON "ProjectImage"("projectId", "sortOrder");
+
 -- AddForeignKey
 ALTER TABLE "ProjectNeed" ADD CONSTRAINT "ProjectNeed_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "ProjectImage" ADD CONSTRAINT "ProjectImage_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

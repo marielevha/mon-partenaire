@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 enum ProjectCategory {
@@ -14,12 +16,16 @@ enum ProjectCategory {
   EDUCATION
   INFRASTRUCTURE
   OTHER
+
+  @@schema("public")
 }
 
 enum ProjectStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+
+  @@schema("public")
 }
 
 enum LegalForm {
@@ -27,17 +33,23 @@ enum LegalForm {
   SA
   AUTOENTREPRENEUR
   OTHER
+
+  @@schema("public")
 }
 
 enum EquityModel {
   NONE
   EQUITY
   REVENUE_SHARE
+
+  @@schema("public")
 }
 
 enum ProjectVisibility {
   PUBLIC
   PRIVATE
+
+  @@schema("public")
 }
 
 model Project {
@@ -50,7 +62,7 @@ model Project {
   subCategory      String?
   city             String
   country          String          @default("CG")
-  status           ProjectStatus
+  status           ProjectStatus   @default(DRAFT)
   legalForm        LegalForm?
   companyCreated   Boolean         @default(false)
   totalCapital     Int?
@@ -61,7 +73,10 @@ model Project {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  needs ProjectNeed[]
+  needs  ProjectNeed[]
+  images ProjectImage[]
+
+  @@schema("public")
 }
 
 model ProjectNeed {
@@ -76,4 +91,20 @@ model ProjectNeed {
   skillTags  String[] @default([])
   isFilled   Boolean  @default(false)
   createdAt  DateTime @default(now())
+
+  @@schema("public")
+}
+
+model ProjectImage {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storagePath String  @unique
+  alt        String?
+  isCover    Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, sortOrder])
+  @@schema("public")
 }

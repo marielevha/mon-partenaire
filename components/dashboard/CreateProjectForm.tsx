@@ -1,22 +1,55 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import type { CreateProjectState } from "@/app/dashboard/actions";
+import type { ProjectFormState } from "@/app/dashboard/actions";
 import { createProjectAction } from "@/app/dashboard/actions";
 import { cn } from "@/components/ui/utils";
 
-const initialState: CreateProjectState = null;
+const initialState: ProjectFormState = null;
 
 const inputStyles =
   "dashboard-input w-full rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45";
 const fileInputStyles =
   "dashboard-input w-full rounded-lg border-dashed px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-accent/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent hover:file:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45";
 
-const PREFILL_VALUES = {
+export type ProjectFormValues = {
+  title: string;
+  city: string;
+  summary: string;
+  description: string;
+  category: string;
+  equityModel: string;
+  visibility: string;
+  legalForm: string;
+  totalCapital: string;
+  ownerContribution: string;
+  equityNote: string;
+  companyCreated: boolean;
+  country: string;
+};
+
+type ProjectFormAction = (
+  prevState: ProjectFormState,
+  formData: FormData
+) => Promise<ProjectFormState>;
+
+type CreateProjectFormProps = {
+  mode?: "create" | "edit";
+  action?: ProjectFormAction;
+  initialValues?: Partial<ProjectFormValues>;
+  projectId?: string;
+  existingImages?: Array<{
+    id: string;
+    url: string | null;
+    alt: string;
+  }>;
+};
+
+const DEFAULT_FORM_VALUES: ProjectFormValues = {
   title: "Atelier agroalimentaire de proximité",
   city: "Brazzaville",
   summary:
@@ -32,7 +65,8 @@ const PREFILL_VALUES = {
   equityNote:
     "Ouvert à un partenaire opérationnel et financier avec gouvernance progressive.",
   companyCreated: true,
-} as const;
+  country: "CG",
+};
 
 const CITY_OPTIONS = [
   "Brazzaville",
@@ -49,8 +83,33 @@ const CITY_OPTIONS = [
   "Autre",
 ];
 
-function SubmitButton() {
+type SelectedImagePreview = {
+  key: string;
+  url: string;
+  name: string;
+};
+
+function buildFormValues(initialValues?: Partial<ProjectFormValues>): ProjectFormValues {
+  return {
+    ...DEFAULT_FORM_VALUES,
+    ...initialValues,
+    legalForm: initialValues?.legalForm ?? DEFAULT_FORM_VALUES.legalForm,
+    totalCapital: initialValues?.totalCapital ?? DEFAULT_FORM_VALUES.totalCapital,
+    ownerContribution:
+      initialValues?.ownerContribution ?? DEFAULT_FORM_VALUES.ownerContribution,
+    equityNote: initialValues?.equityNote ?? DEFAULT_FORM_VALUES.equityNote,
+    country: initialValues?.country ?? DEFAULT_FORM_VALUES.country,
+    companyCreated:
+      typeof initialValues?.companyCreated === "boolean"
+        ? initialValues.companyCreated
+        : DEFAULT_FORM_VALUES.companyCreated,
+  };
+}
+
+function SubmitButton({ mode }: { mode: "create" | "edit" }) {
   const { pending } = useFormStatus();
+  const submitLabel = mode === "edit" ? "Enregistrer les modifications" : "Créer le projet";
+  const pendingLabel = mode === "edit" ? "Enregistrement..." : "Création...";
 
   return (
     <button
@@ -82,39 +141,120 @@ function SubmitButton() {
               strokeLinecap="round"
             />
           </svg>
-          <span>Création...</span>
+          <span>{pendingLabel}</span>
         </>
       ) : (
-        "Créer le projet"
+        submitLabel
       )}
     </button>
   );
 }
 
-export function CreateProjectForm() {
-  const [state, formAction] = useActionState(createProjectAction, initialState);
+export function CreateProjectForm({
+  mode = "create",
+  action,
+  initialValues,
+  projectId,
+  existingImages = [],
+}: CreateProjectFormProps) {
+  const formActionFn = action ?? createProjectAction;
+  const [state, formAction] = useActionState(formActionFn, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
+  const isCreateMode = mode === "create";
+  const values = useMemo(() => buildFormValues(initialValues), [initialValues]);
+  const resultProjectId = state?.ok ? state.projectId : projectId;
+  const [selectedImagePreviews, setSelectedImagePreviews] = useState<
+    SelectedImagePreview[]
+  >([]);
+  const [selectedRemovalImageIds, setSelectedRemovalImageIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedRemovalImageIds((prevIds) =>
+      prevIds.filter((id) => existingImages.some((image) => image.id === id))
+    );
+  }, [existingImages]);
+
+  useEffect(() => {
+    return () => {
+      selectedImagePreviews.forEach((preview) => {
+        URL.revokeObjectURL(preview.url);
+      });
+    };
+  }, [selectedImagePreviews]);
+
+  const handleProjectImagesChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+
+    setSelectedImagePreviews((prevPreviews) => {
+      prevPreviews.forEach((preview) => {
+        URL.revokeObjectURL(preview.url);
+      });
+
+      return files.map((file, index) => ({
+        key: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+        url: URL.createObjectURL(file),
+        name: file.name,
+      }));
+    });
+  };
+
+  const allExistingImagesSelected =
+    existingImages.length > 0 &&
+    selectedRemovalImageIds.length === existingImages.length;
+
+  const handleToggleAllExistingImages = () => {
+    if (allExistingImagesSelected) {
+      setSelectedRemovalImageIds([]);
+      return;
+    }
+    setSelectedRemovalImageIds(existingImages.map((image) => image.id));
+  };
+
+  const handleToggleExistingImage = (imageId: string) => {
+    setSelectedRemovalImageIds((prevIds) =>
+      prevIds.includes(imageId)
+        ? prevIds.filter((id) => id !== imageId)
+        : [...prevIds, imageId]
+    );
+  };
 
   useEffect(() => {
     if (state?.ok) {
-      formRef.current?.reset();
+      if (isCreateMode) {
+        formRef.current?.reset();
+      }
+      setSelectedImagePreviews((prevPreviews) => {
+        prevPreviews.forEach((preview) => {
+          URL.revokeObjectURL(preview.url);
+        });
+        return [];
+      });
+      setSelectedRemovalImageIds([]);
       router.refresh();
     }
-  }, [state, router]);
+  }, [isCreateMode, router, state]);
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4">
-      <p className="dashboard-faint rounded-lg border border-dashed border-accent/35 bg-accent/10 px-3 py-2 text-xs">
-        Champs pré-remplis en mode test. Modifiez les valeurs avant publication.
-      </p>
+      {isCreateMode ? (
+        <p className="dashboard-faint rounded-lg border border-dashed border-accent/35 bg-accent/10 px-3 py-2 text-xs">
+          Champs pré-remplis en mode test. Modifiez les valeurs avant publication.
+        </p>
+      ) : (
+        <p className="dashboard-faint rounded-lg border border-dashed border-accent/35 bg-accent/10 px-3 py-2 text-xs">
+          Modifiez les informations de votre projet puis enregistrez.
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
           <span className="dashboard-faint">Titre</span>
           <input
             name="title"
-            defaultValue={PREFILL_VALUES.title}
+            defaultValue={values.title}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.title && "border-rose-400")}
             placeholder="Ex: Usine de transformation locale"
             required
@@ -128,7 +268,7 @@ export function CreateProjectForm() {
           <span className="dashboard-faint">Ville</span>
           <select
             name="city"
-            defaultValue={PREFILL_VALUES.city}
+            defaultValue={values.city}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.city && "border-rose-400")}
             required
           >
@@ -151,7 +291,7 @@ export function CreateProjectForm() {
         <span className="dashboard-faint">Résumé</span>
         <textarea
           name="summary"
-          defaultValue={PREFILL_VALUES.summary}
+          defaultValue={values.summary}
           className={cn(inputStyles, "min-h-[84px]", state?.ok === false && state.fieldErrors?.summary && "border-rose-400")}
           placeholder="Décrivez le positionnement du projet en quelques lignes."
           required
@@ -165,7 +305,7 @@ export function CreateProjectForm() {
         <span className="dashboard-faint">Description complète</span>
         <textarea
           name="description"
-          defaultValue={PREFILL_VALUES.description}
+          defaultValue={values.description}
           className={cn(inputStyles, "min-h-[150px]", state?.ok === false && state.fieldErrors?.description && "border-rose-400")}
           placeholder="Objectif, marché, modèle économique, équipe, jalons..."
           required
@@ -181,7 +321,7 @@ export function CreateProjectForm() {
           <select
             name="category"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.category && "border-rose-400")}
-            defaultValue={PREFILL_VALUES.category}
+            defaultValue={values.category}
           >
             <option value="AGRIBUSINESS">Agribusiness</option>
             <option value="TECH">Tech</option>
@@ -200,7 +340,7 @@ export function CreateProjectForm() {
           <select
             name="equityModel"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.equityModel && "border-rose-400")}
-            defaultValue={PREFILL_VALUES.equityModel}
+            defaultValue={values.equityModel}
           >
             <option value="NONE">Sans equity</option>
             <option value="EQUITY">Part en capital</option>
@@ -216,7 +356,7 @@ export function CreateProjectForm() {
           <select
             name="visibility"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.visibility && "border-rose-400")}
-            defaultValue={PREFILL_VALUES.visibility}
+            defaultValue={values.visibility}
           >
             <option value="PUBLIC">Public</option>
             <option value="PRIVATE">Privé</option>
@@ -228,7 +368,7 @@ export function CreateProjectForm() {
 
         <label className="space-y-1 text-sm">
           <span className="dashboard-faint">Forme légale</span>
-          <select name="legalForm" className={inputStyles} defaultValue={PREFILL_VALUES.legalForm}>
+          <select name="legalForm" className={inputStyles} defaultValue={values.legalForm}>
             <option value="">Non définie</option>
             <option value="SARL">SARL</option>
             <option value="SA">SA</option>
@@ -246,7 +386,7 @@ export function CreateProjectForm() {
             type="number"
             min="0"
             step="1000"
-            defaultValue={PREFILL_VALUES.totalCapital}
+            defaultValue={values.totalCapital}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.totalCapital && "border-rose-400")}
             placeholder="12000000"
           />
@@ -262,7 +402,7 @@ export function CreateProjectForm() {
             type="number"
             min="0"
             step="1000"
-            defaultValue={PREFILL_VALUES.ownerContribution}
+            defaultValue={values.ownerContribution}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.ownerContribution && "border-rose-400")}
             placeholder="3000000"
           />
@@ -276,7 +416,7 @@ export function CreateProjectForm() {
         <span className="dashboard-faint">Note sur le partenariat (optionnel)</span>
         <textarea
           name="equityNote"
-          defaultValue={PREFILL_VALUES.equityNote}
+          defaultValue={values.equityNote}
           className={cn(inputStyles, "min-h-[90px]")}
           placeholder="Ex: Ouvert à une gouvernance partagée et à un pacte d'associés progressif."
         />
@@ -287,6 +427,74 @@ export function CreateProjectForm() {
         <p className="dashboard-faint mt-1 text-xs">
           Ajoutez des visuels pour renforcer la crédibilité de votre annonce.
         </p>
+        {state?.ok === false && state.fieldErrors?.projectImages ? (
+          <p className="mt-2 rounded-md border border-rose-300/60 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-600 dark:text-rose-200">
+            {state.fieldErrors.projectImages}
+          </p>
+        ) : null}
+
+        {mode === "edit" ? (
+          <div className="mt-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="dashboard-faint text-xs">Images existantes</p>
+              {existingImages.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleToggleAllExistingImages}
+                  className="dashboard-btn-secondary rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                >
+                  {allExistingImagesSelected ? "Tout conserver" : "Tout retirer"}
+                </button>
+              ) : null}
+            </div>
+            {existingImages.length === 0 ? (
+              <p className="dashboard-faint rounded-lg border border-dashed px-3 py-2 text-xs">
+                Aucune image enregistrée pour ce projet.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {existingImages.map((image, index) => (
+                  <label
+                    key={image.id}
+                    className="dashboard-panel rounded-lg border p-2 text-xs"
+                  >
+                    <div className="relative aspect-[16/10] overflow-hidden rounded-md">
+                      {image.url ? (
+                        <Image
+                          src={image.url}
+                          alt={image.alt}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="dashboard-faint flex h-full w-full items-center justify-center text-[11px]">
+                          Image indisponible
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="dashboard-faint truncate">
+                        Image {index + 1}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          name="removeImageIds"
+                          value={image.id}
+                          checked={selectedRemovalImageIds.includes(image.id)}
+                          onChange={() => handleToggleExistingImage(image.id)}
+                          className="h-3.5 w-3.5 rounded border-slate-400 bg-transparent text-rose-500 focus:ring-rose-400/45"
+                        />
+                        Retirer
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
@@ -297,9 +505,12 @@ export function CreateProjectForm() {
               multiple
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
               className={fileInputStyles}
+              onChange={handleProjectImagesChange}
             />
             <p className="dashboard-faint text-xs">
-              Jusqu&apos;à 10 images recommandées.
+              {isCreateMode
+                ? "Jusqu'à 10 images recommandées."
+                : "Ajoutez de nouvelles images (elles seront ajoutées à la galerie existante)."}
             </p>
           </label>
 
@@ -317,6 +528,31 @@ export function CreateProjectForm() {
             </p>
           </label>
         </div>
+
+        {selectedImagePreviews.length > 0 ? (
+          <div className="mt-3">
+            <p className="dashboard-faint mb-2 text-xs">
+              Prévisualisation des nouvelles images ({selectedImagePreviews.length})
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedImagePreviews.map((preview) => (
+                <div key={preview.key} className="dashboard-panel rounded-lg border p-2 text-xs">
+                  <div className="relative aspect-[16/10] overflow-hidden rounded-md">
+                    <Image
+                      src={preview.url}
+                      alt={preview.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <p className="dashboard-faint mt-2 truncate">{preview.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="dashboard-panel-soft flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3">
@@ -324,24 +560,27 @@ export function CreateProjectForm() {
           <input
             type="checkbox"
             name="companyCreated"
-            defaultChecked={PREFILL_VALUES.companyCreated}
+            defaultChecked={values.companyCreated}
             className="h-4 w-4 rounded border-slate-400 bg-transparent text-accent focus:ring-accent/45"
           />
           Entreprise déjà créée
         </label>
 
-        <input type="hidden" name="country" value="CG" />
+        <input type="hidden" name="country" value={values.country || "CG"} />
+        {mode === "edit" ? (
+          <input type="hidden" name="projectId" value={projectId} />
+        ) : null}
 
         <div className="flex items-center gap-2">
-          {state?.ok ? (
+          {resultProjectId ? (
             <Link
-              href={`/projects/${state.projectId}`}
+              href={`/projects/${resultProjectId}`}
               className="dashboard-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
             >
               Voir le projet
             </Link>
           ) : null}
-          <SubmitButton />
+          <SubmitButton mode={mode} />
         </div>
       </div>
 

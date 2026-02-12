@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { ProjectBadge } from "@/components/projects/ProjectBadge";
 import ProjectImageGallery from "@/components/projects/ProjectImageGallery";
 import { ProjectContactActions } from "@/components/projects/ProjectContactActions";
+import { buildProjectImagePublicUrl } from "@/src/lib/projects";
 
 type Props = {
   params: { id: string };
@@ -51,7 +52,12 @@ const visibilityLabels: Record<string, string> = {
 const getProjectById = cache(async (projectId: string) => {
   return prisma.project.findUnique({
     where: { id: projectId },
-    include: { needs: true },
+    include: {
+      needs: true,
+      images: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+    },
   });
 });
 
@@ -107,9 +113,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const baseSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   const canonicalPath = `/projects/${project.id}`;
   const canonicalUrl = baseSiteUrl ? `${baseSiteUrl}${canonicalPath}` : canonicalPath;
-  const openGraphImage = baseSiteUrl
-    ? `${baseSiteUrl}/landing/project-1.svg`
-    : "/landing/project-1.svg";
+  const firstImageUrlRaw =
+    project.images.length > 0
+      ? buildProjectImagePublicUrl(project.images[0].storagePath)
+      : null;
+  const firstImageUrl =
+    firstImageUrlRaw && baseSiteUrl && firstImageUrlRaw.startsWith("/")
+      ? `${baseSiteUrl}${firstImageUrlRaw}`
+      : firstImageUrlRaw;
+  const openGraphImage =
+    firstImageUrl ??
+    (baseSiteUrl ? `${baseSiteUrl}/landing/project-1.svg` : "/landing/project-1.svg");
 
   return {
     title,
@@ -175,11 +189,14 @@ export default async function ProjectDetailPage({ params }: Props) {
     redirect("/projects");
   }
 
-  const images = [
-    "/landing/project-1.svg",
-    "/landing/project-2.svg",
-    "/landing/project-3.svg",
-  ];
+  const uploadedImages = project.images
+    .map((image) => buildProjectImagePublicUrl(image.storagePath))
+    .filter((url): url is string => Boolean(url));
+
+  const images =
+    uploadedImages.length > 0
+      ? uploadedImages
+      : ["/landing/project-1.svg", "/landing/project-2.svg", "/landing/project-3.svg"];
 
   const totalNeeds = project.needs.length;
   const openNeeds = project.needs.filter((need) => !need.isFilled);

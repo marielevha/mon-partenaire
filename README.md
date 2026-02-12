@@ -57,6 +57,25 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - contraste badges catégorie/statut en mode clair,
   - harmonisation visuelle globale des composants dashboard.
 
+## Résumé des dernières modifications
+
+- Création de projet branchée à la base de données via Server Action :
+  - enregistrement des données métier dans `Project`,
+  - statut initial par défaut : `DRAFT` (brouillon).
+- Mise en place d'un stockage média S3/MinIO pour les images projet :
+  - upload côté serveur avec signatures S3,
+  - proxy de lecture via `GET /api/project-images/[...key]`,
+  - affichage des images uploadées sur la page publique de détail projet.
+- Nouvelle page d'édition projet dans le dashboard :
+  - route : `/dashboard/projects/[id]/edit`,
+  - formulaire pré-rempli avec les données existantes,
+  - mise à jour des champs projet via action serveur sécurisée (owner check).
+- Gestion avancée des images dans l'édition :
+  - affichage des images déjà enregistrées,
+  - suppression unitaire et action globale `Tout retirer`,
+  - réordonnancement automatique des images restantes (cover + sort order).
+- Prévisualisation client des nouvelles images sélectionnées avant soumission.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

@@ -297,6 +297,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <div className="dashboard-divider mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
                       <div className="flex items-center gap-2">
                         <Link
+                          href={`/dashboard/projects/${project.id}/edit`}
+                          className="dashboard-btn-secondary rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                        >
+                          Modifier
+                        </Link>
+                        <Link
                           href={`/projects/${project.id}`}
                           className="dashboard-btn-secondary rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
                         >
