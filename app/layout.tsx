@@ -17,6 +17,14 @@ export const metadata: Metadata = {
   title: "Mon partenaire | Trouver un partenaire fiable",
   description:
     "La plateforme pour structurer des partenariats entrepreneuriaux au Congo-Brazzaville.",
+  icons: {
+    icon: [
+      { url: "/branding/favicon-mon-partenaire-pro.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/branding/favicon-mon-partenaire-pro.svg" }],
+  },
 };
 
 export default function RootLayout({

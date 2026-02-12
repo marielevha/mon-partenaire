@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import { DashboardNavClient } from "@/components/dashboard/DashboardNavClient";
 import { DashboardThemeToggle } from "@/components/dashboard/DashboardThemeToggle";
 import { DashboardTopbarUserMenuClient } from "@/components/dashboard/DashboardTopbarUserMenuClient";
+import { DashboardBrand } from "@/components/dashboard/DashboardBrand";
 
 export default async function DashboardLayout({
   children,
@@ -42,9 +43,19 @@ export default async function DashboardLayout({
     <div className="dashboard-shell min-h-screen">
       <aside className="dashboard-sidebar fixed inset-y-0 left-0 z-30 hidden w-72 border-r xl:block">
         <div className="dashboard-divider border-b px-6 py-6">
+          <DashboardBrand />
+        </div>
+        {/* <div className="dashboard-divider border-b px-6 py-6">
           <p className="dashboard-faint text-xs uppercase tracking-[0.2em]">Mon partenaire</p>
           <p className="mt-2 text-2xl font-semibold">Dashboard</p>
-        </div>
+          <DashboardBrand />
+        </div> */}
+          {/* <div className="mx-auto flex h-20 w-full max-w-[1400px] items-center gap-4 px-6">
+            <div className="md:hidden">
+              <DashboardBrand compact />
+            </div>
+            <div className="hidden min-w-[320px] flex-1 md:flex"></div>
+          </div> */}
 
         <div className="px-5 py-6">
           <p className="dashboard-faint mb-3 px-1 text-xs uppercase tracking-[0.2em]">
@@ -57,6 +68,9 @@ export default async function DashboardLayout({
       <div className="min-h-screen xl:pl-72">
         <header className="dashboard-topbar sticky top-0 z-20 border-b backdrop-blur">
           <div className="mx-auto flex h-20 w-full max-w-[1400px] items-center gap-4 px-6">
+            <div className="md:hidden">
+              <DashboardBrand compact />
+            </div>
             <div className="hidden min-w-[320px] flex-1 md:flex">
               <label className="relative w-full max-w-xl">
                 <span className="dashboard-faint pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">

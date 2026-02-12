@@ -1,0 +1,37 @@
+<svg width="240" height="220" viewBox="0 0 240 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mp_blue_ref" x1="34" y1="18" x2="112" y2="154" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1784C8"/>
+      <stop offset="1" stop-color="#0A4F96"/>
+    </linearGradient>
+    <linearGradient id="mp_orange_ref" x1="206" y1="18" x2="128" y2="154" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A00"/>
+      <stop offset="1" stop-color="#E65100"/>
+    </linearGradient>
+    <linearGradient id="mp_link_ref" x1="74" y1="98" x2="166" y2="98" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1784C8"/>
+      <stop offset="1" stop-color="#F06A21"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="70" cy="32" r="18" fill="url(#mp_blue_ref)"/>
+  <path d="M36 120C29 109 26 98 26 88C26 63 43 55 63 55C78 55 91 60 100 73C94 82 90 92 90 103C90 116 96 128 106 138H48C43 138 39 135 36 130V120Z" fill="url(#mp_blue_ref)"/>
+
+  <circle cx="170" cy="32" r="18" fill="url(#mp_orange_ref)"/>
+  <path d="M204 120C211 109 214 98 214 88C214 63 197 55 177 55C162 55 149 60 140 73C146 82 150 92 150 103C150 116 144 128 134 138H192C197 138 201 135 204 130V120Z" fill="url(#mp_orange_ref)"/>
+
+  <path d="M36 104C54 88 77 84 96 94" stroke="#0A4F96" stroke-width="14" stroke-linecap="round"/>
+  <path d="M36 104C54 88 77 84 96 94" stroke="white" stroke-width="8" stroke-linecap="round"/>
+
+  <path d="M204 104C186 88 163 84 144 94" stroke="#E65100" stroke-width="14" stroke-linecap="round"/>
+  <path d="M204 104C186 88 163 84 144 94" stroke="white" stroke-width="8" stroke-linecap="round"/>
+
+  <circle cx="120" cy="97" r="22" stroke="url(#mp_link_ref)" stroke-width="9"/>
+  <path d="M102 97C106 102 112 106 120 106C128 106 134 102 138 97" stroke="url(#mp_link_ref)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="120" cy="97" r="10" fill="white"/>
+
+  <text x="44" y="188" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="42" font-weight="800">
+    <tspan fill="#0B4D85">Mon</tspan>
+    <tspan fill="#F06A21">Partenaire</tspan>
+  </text>
+</svg>
