@@ -87,6 +87,9 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - route : `/dashboard/projects`,
   - pagination `10/25/50/100`,
   - actions `Modifier`, `Voir page publique`, changement de statut.
+- Navigation d'édition harmonisée :
+  - fil d'ariane `Dashboard / Mes projets / Modifier le projet`,
+  - entrée `Mes projets` active sur les routes d'édition.
 - Correctif React : suppression de la boucle de rendu (`Maximum update depth exceeded`) dans `CreateProjectForm`.
 
 ### Formulaire de contact

@@ -144,6 +144,10 @@ export default async function DashboardEditProjectPage({
             Dashboard
           </Link>
           <span>/</span>
+          <Link href="/dashboard/projects" className="transition-colors hover:text-accent">
+            Mes projets
+          </Link>
+          <span>/</span>
           <span className="dashboard-muted">Modifier le projet</span>
         </div>
         <h1 className="text-3xl font-semibold">Mettre à jour le projet</h1>

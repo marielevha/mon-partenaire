@@ -8,29 +8,37 @@ type DashboardNavProps = {
   mobile?: boolean;
 };
 
+function normalizePathname(pathname: string) {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 const navItems = [
   {
     href: "/dashboard",
     label: "Vue d'ensemble",
-    isActive: (pathname: string) => pathname === "/dashboard",
+    isActive: (pathname: string) => normalizePathname(pathname) === "/dashboard",
   },
   {
     href: "/dashboard/projects",
     label: "Mes projets",
     isActive: (pathname: string) =>
-      pathname === "/dashboard/projects" ||
-      (pathname.startsWith("/dashboard/projects/") &&
-        pathname !== "/dashboard/projects/new"),
+      normalizePathname(pathname) === "/dashboard/projects" ||
+      (normalizePathname(pathname).startsWith("/dashboard/projects/") &&
+        !normalizePathname(pathname).startsWith("/dashboard/projects/new")),
   },
   {
     href: "/dashboard/projects/new",
     label: "Créer un projet",
-    isActive: (pathname: string) => pathname === "/dashboard/projects/new",
+    isActive: (pathname: string) =>
+      normalizePathname(pathname) === "/dashboard/projects/new",
   },
 ];
 
 export function DashboardNav({ mobile = false }: DashboardNavProps) {
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname());
 
   return (
     <nav className={cn("space-y-2", mobile && "space-y-0")}>
