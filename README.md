@@ -16,6 +16,22 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Lancement avec Docker Compose
+
+Le projet peut être lancé avec l'application + MinIO en une commande:
+
+```bash
+docker compose up --build
+```
+
+Services exposés:
+
+- App Next.js: `http://localhost:3000`
+- MinIO API: `http://localhost:9000`
+- MinIO Console: `http://localhost:9001`
+
+Le bucket MinIO est créé automatiquement au démarrage (`S3_BUCKET`), avec accès lecture anonyme pour les téléchargements publics.
+
 ## Environment Variables
 
 Create a `.env.local` file with:
