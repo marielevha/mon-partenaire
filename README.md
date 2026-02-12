@@ -92,6 +92,29 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - entrée `Mes projets` active sur les routes d'édition.
 - Correctif React : suppression de la boucle de rendu (`Maximum update depth exceeded`) dans `CreateProjectForm`.
 
+## Dernières évolutions (Documents & Templates)
+
+- Nouvelle page publique `/documents` pour explorer les modèles avec:
+  - filtres intelligents (secteur, niveau, type, objectif, recherche),
+  - mode `Téléchargement` et mode `Interactif` (création de projet pré-remplie).
+- Nouvelle section dashboard `Templates documents`:
+  - datatable moderne avec recherche, tri et pagination,
+  - actions par ligne (`Modifier`, `Détails` via modal).
+- Workflow complet de gestion des templates côté dashboard:
+  - création: `/dashboard/document-templates/new`,
+  - édition: `/dashboard/document-templates/[templateId]/edit`,
+  - formulaire unifié create/edit avec validations serveur.
+- Intégration upload de pièce jointe template sur MinIO/S3:
+  - stockage des métadonnées dans `DocumentTemplate` (`attachedDocument*`),
+  - remplacement/suppression du fichier existant,
+  - détection automatique du `type de fichier` selon le document chargé.
+- Téléchargement public branché sur le document réel:
+  - route `GET /api/document-templates/[slug]` priorise le fichier MinIO attaché,
+  - fallback automatique sur génération markdown si aucun fichier n'est joint.
+- Navigation dashboard enrichie:
+  - entrée `Templates documents`,
+  - entrée dédiée `Ajouter un document`.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

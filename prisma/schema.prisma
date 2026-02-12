@@ -52,6 +52,38 @@ enum ProjectVisibility {
   @@schema("public")
 }
 
+enum DocumentTemplateCategory {
+  BUSINESS_STRATEGY
+  LEGAL_CREATION
+  FINANCE_INVESTMENT
+  LOCAL_SECTORS
+
+  @@schema("public")
+}
+
+enum DocumentTemplateLevel {
+  BEGINNER
+  ADVANCED
+
+  @@schema("public")
+}
+
+enum DocumentTemplateFileType {
+  PDF
+  DOCX
+  EDITABLE_ONLINE
+
+  @@schema("public")
+}
+
+enum DocumentTemplateObjective {
+  CREATE_BUSINESS
+  RAISE_FUNDS
+  FORMALIZE_PARTNERSHIP
+
+  @@schema("public")
+}
+
 model Project {
   id               String          @id @default(uuid())
   ownerId          String
@@ -122,5 +154,32 @@ model ProjectDocument {
   createdAt    DateTime @default(now())
 
   @@index([projectId, sortOrder])
+  @@schema("public")
+}
+
+model DocumentTemplate {
+  id                        String                    @id @default(uuid())
+  ownerId                   String?
+  slug                      String                    @unique
+  title                     String
+  summary                   String
+  category                  DocumentTemplateCategory
+  level                     DocumentTemplateLevel
+  fileType                  DocumentTemplateFileType
+  objective                 DocumentTemplateObjective
+  sectorTags                String[]                  @default([])
+  highlight                 String
+  attachedDocumentPath      String?
+  attachedDocumentName      String?
+  attachedDocumentMimeType  String?
+  attachedDocumentSizeBytes Int?
+  isPublished               Boolean                   @default(true)
+  isFeatured                Boolean                   @default(false)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  @@index([isPublished, isFeatured])
+  @@index([category])
+  @@index([ownerId])
   @@schema("public")
 }

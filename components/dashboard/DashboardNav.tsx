@@ -35,6 +35,20 @@ const navItems = [
     isActive: (pathname: string) =>
       normalizePathname(pathname) === "/dashboard/projects/new",
   },
+  {
+    href: "/dashboard/document-templates",
+    label: "Templates documents",
+    isActive: (pathname: string) =>
+      normalizePathname(pathname) === "/dashboard/document-templates" ||
+      (normalizePathname(pathname).startsWith("/dashboard/document-templates/") &&
+        !normalizePathname(pathname).startsWith("/dashboard/document-templates/new")),
+  },
+  {
+    href: "/dashboard/document-templates/new",
+    label: "Ajouter un document",
+    isActive: (pathname: string) =>
+      normalizePathname(pathname) === "/dashboard/document-templates/new",
+  },
 ];
 
 export function DashboardNav({ mobile = false }: DashboardNavProps) {
