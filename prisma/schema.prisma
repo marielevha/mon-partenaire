@@ -75,6 +75,7 @@ model Project {
 
   needs  ProjectNeed[]
   images ProjectImage[]
+  documents ProjectDocument[]
 
   @@schema("public")
 }
@@ -104,6 +105,21 @@ model ProjectImage {
   isCover    Boolean  @default(false)
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
+
+  @@index([projectId, sortOrder])
+  @@schema("public")
+}
+
+model ProjectDocument {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storagePath  String   @unique
+  originalName String
+  mimeType     String?
+  sizeBytes    Int?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
 
   @@index([projectId, sortOrder])
   @@schema("public")

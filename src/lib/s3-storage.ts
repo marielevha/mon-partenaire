@@ -119,7 +119,7 @@ function createPresignedS3Url(method: "PUT" | "DELETE" | "GET", key: string): st
   return `${origin}${canonicalUri}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
 }
 
-export async function uploadProjectImageObject(file: File, key: string) {
+async function uploadS3Object(file: File, key: string) {
   const presignedUrl = createPresignedS3Url("PUT", key);
   const body = Buffer.from(await file.arrayBuffer());
 
@@ -136,10 +136,10 @@ export async function uploadProjectImageObject(file: File, key: string) {
     );
   }
 
-  return { objectKey: key };
+  return key;
 }
 
-export async function fetchProjectImageObject(key: string) {
+async function fetchS3Object(key: string) {
   const presignedUrl = createPresignedS3Url("GET", key);
   const response = await fetch(presignedUrl, { method: "GET" });
   if (!response.ok) {
@@ -151,7 +151,7 @@ export async function fetchProjectImageObject(key: string) {
   return response;
 }
 
-export async function deleteProjectImageObjects(keys: string[]) {
+async function deleteS3Objects(keys: string[]) {
   if (keys.length === 0) {
     return;
   }
@@ -164,10 +164,47 @@ export async function deleteProjectImageObjects(keys: string[]) {
   );
 }
 
-export function resolveS3PublicUrlFromStoredValue(value: string): string | null {
+function resolveS3PublicUrlFromStoredValueWithRoute(
+  value: string,
+  routePrefix: string
+): string | null {
   const objectKey = resolveS3ObjectKey(value);
   if (!objectKey) return null;
-  return `/api/project-images/${encodePath(objectKey)}`;
+  return `${routePrefix}/${encodePath(objectKey)}`;
+}
+
+export async function uploadProjectImageObject(file: File, key: string) {
+  const objectKey = await uploadS3Object(file, key);
+  return { objectKey };
+}
+
+export async function uploadProjectDocumentObject(file: File, key: string) {
+  const objectKey = await uploadS3Object(file, key);
+  return { objectKey };
+}
+
+export async function fetchProjectImageObject(key: string) {
+  return fetchS3Object(key);
+}
+
+export async function fetchProjectDocumentObject(key: string) {
+  return fetchS3Object(key);
+}
+
+export async function deleteProjectImageObjects(keys: string[]) {
+  return deleteS3Objects(keys);
+}
+
+export async function deleteProjectDocumentObjects(keys: string[]) {
+  return deleteS3Objects(keys);
+}
+
+export function resolveS3PublicUrlFromStoredValue(value: string): string | null {
+  return resolveS3PublicUrlFromStoredValueWithRoute(value, "/api/project-images");
+}
+
+export function resolveS3DocumentPublicUrlFromStoredValue(value: string): string | null {
+  return resolveS3PublicUrlFromStoredValueWithRoute(value, "/api/project-documents");
 }
 
 export function resolveS3ObjectKey(value: string): string | null {

@@ -6,7 +6,9 @@ import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import prisma from "@/src/lib/prisma";
 import { createProjectDraft } from "@/src/lib/projects";
 import {
+  deleteProjectDocumentObjects,
   deleteProjectImageObjects,
+  uploadProjectDocumentObject,
   uploadProjectImageObject,
 } from "@/src/lib/s3-storage";
 
@@ -26,7 +28,8 @@ type ProjectFormField =
   | "ownerContribution"
   | "equityModel"
   | "visibility"
-  | "projectImages";
+  | "projectImages"
+  | "projectDocuments";
 
 type ProjectFormError = {
   ok: false;
@@ -59,6 +62,32 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/webp",
   "image/svg+xml",
 ]);
+const MAX_PROJECT_DOCUMENTS = 20;
+const MAX_DOCUMENT_SIZE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/csv",
+  "application/json",
+]);
+const ALLOWED_DOCUMENT_EXTENSIONS = new Set([
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".csv",
+  ".txt",
+  ".json",
+]);
 
 type ProjectCategoryValue = (typeof PROJECT_CATEGORIES)[number];
 type EquityModelValue = (typeof EQUITY_MODELS)[number];
@@ -72,6 +101,19 @@ type ProjectImageCreateManyDelegate = {
       storagePath: string;
       sortOrder: number;
       isCover: boolean;
+    }>;
+  }) => Promise<unknown>;
+};
+
+type ProjectDocumentCreateManyDelegate = {
+  createMany: (args: {
+    data: Array<{
+      projectId: string;
+      storagePath: string;
+      originalName: string;
+      mimeType: string | null;
+      sizeBytes: number | null;
+      sortOrder: number;
     }>;
   }) => Promise<unknown>;
 };
@@ -91,6 +133,19 @@ type ParsedProjectFormData = {
   equityNote: string | null;
   visibility: VisibilityValue;
   imageFiles: File[];
+  documentFiles: File[];
+};
+
+type ProjectDocumentInsertData = {
+  storagePath: string;
+  originalName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+};
+
+type ParseProjectFormOptions = {
+  currentImageCount?: number;
+  currentDocumentCount?: number;
 };
 
 function getValue(formData: FormData, key: string) {
@@ -107,23 +162,48 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
+function getFileExtension(fileName: string) {
+  const extension = fileName.includes(".")
+    ? `.${fileName.split(".").pop()?.toLowerCase()?.replace(/[^a-z0-9]/g, "") ?? ""}`
+    : "";
+  return extension && extension.length <= 12 ? extension : "";
+}
+
+function isSupportedDocumentFile(file: File) {
+  if (file.type && ALLOWED_DOCUMENT_MIME_TYPES.has(file.type.toLowerCase())) {
+    return true;
+  }
+
+  const extension = getFileExtension(file.name);
+  return extension ? ALLOWED_DOCUMENT_EXTENSIONS.has(extension) : false;
+}
+
 function buildProjectImagePath(
   ownerId: string,
   projectId: string,
   file: File,
   index: number
 ) {
-  const extension = file.name.includes(".")
-    ? `.${file.name.split(".").pop()?.toLowerCase()?.replace(/[^a-z0-9]/g, "") ?? ""}`
-    : "";
-  const safeExtension = extension && extension.length <= 12 ? extension : "";
-  return `${ownerId}/${projectId}/${index + 1}-${crypto.randomUUID()}${safeExtension}`;
+  const extension = getFileExtension(file.name);
+  return `${ownerId}/${projectId}/images/${index + 1}-${crypto.randomUUID()}${extension}`;
+}
+
+function buildProjectDocumentPath(
+  ownerId: string,
+  projectId: string,
+  file: File,
+  index: number
+) {
+  const extension = getFileExtension(file.name);
+  return `${ownerId}/${projectId}/documents/${index + 1}-${crypto.randomUUID()}${extension}`;
 }
 
 function parseAndValidateProjectForm(
   formData: FormData,
-  currentImageCount = 0
+  options: ParseProjectFormOptions = {}
 ): { data?: ParsedProjectFormData; fieldErrors?: ProjectFormError["fieldErrors"] } {
+  const { currentImageCount = 0, currentDocumentCount = 0 } = options;
+
   const title = getValue(formData, "title");
   const summary = getValue(formData, "summary");
   const description = getValue(formData, "description");
@@ -140,6 +220,9 @@ function parseAndValidateProjectForm(
   const ownerContribution = parseOptionalNumber(getValue(formData, "ownerContribution"));
   const imageFiles = formData
     .getAll("projectImages")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  const documentFiles = formData
+    .getAll("projectDocuments")
     .filter((value): value is File => value instanceof File && value.size > 0);
 
   const fieldErrors: ProjectFormError["fieldErrors"] = {};
@@ -172,7 +255,10 @@ function parseAndValidateProjectForm(
     fieldErrors.visibility = "Visibilité invalide.";
   }
 
-  if (Number.isNaN(totalCapital as number) || (typeof totalCapital === "number" && totalCapital < 0)) {
+  if (
+    Number.isNaN(totalCapital as number) ||
+    (typeof totalCapital === "number" && totalCapital < 0)
+  ) {
     fieldErrors.totalCapital = "Capital total invalide.";
   }
 
@@ -188,7 +274,8 @@ function parseAndValidateProjectForm(
     typeof ownerContribution === "number" &&
     ownerContribution > totalCapital
   ) {
-    fieldErrors.ownerContribution = "L'apport du porteur ne peut pas dépasser le capital total.";
+    fieldErrors.ownerContribution =
+      "L'apport du porteur ne peut pas dépasser le capital total.";
   }
 
   if (currentImageCount + imageFiles.length > MAX_PROJECT_IMAGES) {
@@ -202,6 +289,18 @@ function parseAndValidateProjectForm(
     fieldErrors.projectImages = "Format image non supporté (JPG, PNG, WEBP, SVG).";
   } else if (imageFiles.some((file) => file.size > MAX_IMAGE_SIZE_BYTES)) {
     fieldErrors.projectImages = "Chaque image doit faire moins de 5 MB.";
+  }
+
+  if (currentDocumentCount + documentFiles.length > MAX_PROJECT_DOCUMENTS) {
+    fieldErrors.projectDocuments =
+      currentDocumentCount > 0
+        ? `Limite de ${MAX_PROJECT_DOCUMENTS} documents atteinte. Ce projet contient déjà ${currentDocumentCount} document(s).`
+        : `Vous pouvez importer au maximum ${MAX_PROJECT_DOCUMENTS} documents.`;
+  } else if (documentFiles.some((file) => !isSupportedDocumentFile(file))) {
+    fieldErrors.projectDocuments =
+      "Format document non supporté (PDF, Word, Excel, PowerPoint, CSV, TXT, JSON).";
+  } else if (documentFiles.some((file) => file.size > MAX_DOCUMENT_SIZE_BYTES)) {
+    fieldErrors.projectDocuments = "Chaque document doit faire moins de 20 MB.";
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -230,14 +329,15 @@ function parseAndValidateProjectForm(
       equityNote: equityNote || null,
       visibility: visibility as VisibilityValue,
       imageFiles,
+      documentFiles,
     },
   };
 }
 
-type ImageInsertDb = Prisma.TransactionClient | typeof prisma;
+type AssetInsertDb = Prisma.TransactionClient | typeof prisma;
 
 async function insertProjectImageRecords(
-  db: ImageInsertDb,
+  db: AssetInsertDb,
   projectId: string,
   storagePaths: string[],
   startSortOrder: number
@@ -268,6 +368,40 @@ async function insertProjectImageRecords(
   }
 }
 
+async function insertProjectDocumentRecords(
+  db: AssetInsertDb,
+  projectId: string,
+  documents: ProjectDocumentInsertData[],
+  startSortOrder: number
+) {
+  const projectDocumentDelegate = (
+    db as unknown as { projectDocument?: ProjectDocumentCreateManyDelegate }
+  ).projectDocument;
+
+  if (projectDocumentDelegate?.createMany) {
+    await projectDocumentDelegate.createMany({
+      data: documents.map((document, index) => ({
+        projectId,
+        storagePath: document.storagePath,
+        originalName: document.originalName,
+        mimeType: document.mimeType,
+        sizeBytes: document.sizeBytes,
+        sortOrder: startSortOrder + index,
+      })),
+    });
+    return;
+  }
+
+  for (const [index, document] of documents.entries()) {
+    await db.$executeRaw`
+      INSERT INTO "ProjectDocument"
+        ("id", "projectId", "storagePath", "originalName", "mimeType", "sizeBytes", "sortOrder", "createdAt")
+      VALUES
+        (${crypto.randomUUID()}, ${projectId}, ${document.storagePath}, ${document.originalName}, ${document.mimeType}, ${document.sizeBytes}, ${startSortOrder + index}, NOW())
+    `;
+  }
+}
+
 async function uploadProjectImagesToStorage(
   ownerId: string,
   projectId: string,
@@ -290,10 +424,34 @@ async function uploadProjectImagesToStorage(
   };
 }
 
-async function normalizeProjectImageOrdering(
-  db: Prisma.TransactionClient | typeof prisma,
-  projectId: string
+async function uploadProjectDocumentsToStorage(
+  ownerId: string,
+  projectId: string,
+  documentFiles: File[],
+  startIndex: number
 ) {
+  const uploadedObjectKeys: string[] = [];
+  const uploadedDocuments: ProjectDocumentInsertData[] = [];
+
+  for (const [index, file] of documentFiles.entries()) {
+    const objectKey = buildProjectDocumentPath(ownerId, projectId, file, startIndex + index);
+    const { objectKey: uploadedObjectKey } = await uploadProjectDocumentObject(file, objectKey);
+    uploadedObjectKeys.push(objectKey);
+    uploadedDocuments.push({
+      storagePath: uploadedObjectKey,
+      originalName: file.name,
+      mimeType: file.type || null,
+      sizeBytes: file.size,
+    });
+  }
+
+  return {
+    uploadedObjectKeys,
+    uploadedDocuments,
+  };
+}
+
+async function normalizeProjectImageOrdering(db: AssetInsertDb, projectId: string) {
   await db.$executeRaw`
     WITH ordered AS (
       SELECT
@@ -313,7 +471,29 @@ async function normalizeProjectImageOrdering(
   `;
 }
 
-function mapProjectImageError(error: unknown): ProjectFormError {
+async function normalizeProjectDocumentOrdering(db: AssetInsertDb, projectId: string) {
+  await db.$executeRaw`
+    WITH ordered AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          ORDER BY "sortOrder" ASC, "createdAt" ASC, id ASC
+        ) - 1 AS new_sort
+      FROM "ProjectDocument"
+      WHERE "projectId" = ${projectId}
+    )
+    UPDATE "ProjectDocument" AS document
+    SET
+      "sortOrder" = ordered.new_sort
+    FROM ordered
+    WHERE document.id = ordered.id
+  `;
+}
+
+function mapProjectAssetError(
+  error: unknown,
+  context: "image" | "document" | "mixed"
+): ProjectFormError {
   const reason =
     error instanceof Error
       ? error.message
@@ -323,6 +503,22 @@ function mapProjectImageError(error: unknown): ProjectFormError {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === "P2021"
   ) {
+    if (context === "document") {
+      return {
+        ok: false,
+        message:
+          "La table ProjectDocument est absente dans la base. Exécutez le SQL de création de table puis réessayez.",
+      };
+    }
+
+    if (context === "mixed") {
+      return {
+        ok: false,
+        message:
+          "Une table média est absente dans la base (ProjectImage/ProjectDocument). Exécutez le SQL d'initialisation puis réessayez.",
+      };
+    }
+
     return {
       ok: false,
       message:
@@ -331,6 +527,14 @@ function mapProjectImageError(error: unknown): ProjectFormError {
   }
 
   if (/Cannot read properties of undefined \(reading 'createMany'\)/i.test(reason)) {
+    if (context === "document" || /ProjectDocument|projectDocument/i.test(reason)) {
+      return {
+        ok: false,
+        message:
+          "Client Prisma non synchronisé (projectDocument manquant). Exécutez `pnpm prisma generate`, redémarrez le serveur puis réessayez.",
+      };
+    }
+
     return {
       ok: false,
       message:
@@ -362,13 +566,21 @@ function mapProjectImageError(error: unknown): ProjectFormError {
     };
   }
 
-  console.error("Project image upload failed:", reason);
+  const scopeLabel =
+    context === "image"
+      ? "images"
+      : context === "document"
+        ? "documents"
+        : "fichiers";
+
+  console.error(`Project ${scopeLabel} upload failed:`, reason);
+
   return {
     ok: false,
     message:
       process.env.NODE_ENV === "development"
-        ? `Impossible d'enregistrer les images du projet. Détail: ${reason}`
-        : "Impossible d'enregistrer les images du projet. Vérifiez la configuration S3/MinIO et réessayez.",
+        ? `Impossible d'enregistrer les ${scopeLabel} du projet. Détail: ${reason}`
+        : `Impossible d'enregistrer les ${scopeLabel} du projet. Vérifiez la configuration S3/MinIO et réessayez.`,
   };
 }
 
@@ -416,36 +628,68 @@ export async function createProjectAction(
     visibility: input.visibility,
   });
 
-  if (input.imageFiles.length > 0) {
-    let uploadedObjectKeys: string[] = [];
-    try {
-      const uploadResult = await uploadProjectImagesToStorage(
+  let uploadedImageObjectKeys: string[] = [];
+  let uploadedDocumentObjectKeys: string[] = [];
+  let uploadedImageStorageKeys: string[] = [];
+  let uploadedDocuments: ProjectDocumentInsertData[] = [];
+
+  try {
+    if (input.imageFiles.length > 0) {
+      const imageUploadResult = await uploadProjectImagesToStorage(
         session.user.id,
         project.id,
         input.imageFiles,
         0
       );
-      uploadedObjectKeys = uploadResult.uploadedObjectKeys;
+      uploadedImageObjectKeys = imageUploadResult.uploadedObjectKeys;
+      uploadedImageStorageKeys = imageUploadResult.uploadedStorageKeys;
+    }
 
-      await insertProjectImageRecords(
-        prisma,
+    if (input.documentFiles.length > 0) {
+      const documentUploadResult = await uploadProjectDocumentsToStorage(
+        session.user.id,
         project.id,
-        uploadResult.uploadedStorageKeys,
+        input.documentFiles,
         0
       );
-    } catch (error) {
-      if (uploadedObjectKeys.length > 0) {
-        await deleteProjectImageObjects(uploadedObjectKeys);
-      }
-
-      await prisma.project
-        .delete({
-          where: { id: project.id },
-        })
-        .catch(() => undefined);
-
-      return mapProjectImageError(error);
+      uploadedDocumentObjectKeys = documentUploadResult.uploadedObjectKeys;
+      uploadedDocuments = documentUploadResult.uploadedDocuments;
     }
+
+    if (uploadedImageStorageKeys.length > 0 || uploadedDocuments.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        if (uploadedImageStorageKeys.length > 0) {
+          await insertProjectImageRecords(tx, project.id, uploadedImageStorageKeys, 0);
+        }
+
+        if (uploadedDocuments.length > 0) {
+          await insertProjectDocumentRecords(tx, project.id, uploadedDocuments, 0);
+        }
+      });
+    }
+  } catch (error) {
+    if (uploadedImageObjectKeys.length > 0) {
+      await deleteProjectImageObjects(uploadedImageObjectKeys).catch(() => undefined);
+    }
+
+    if (uploadedDocumentObjectKeys.length > 0) {
+      await deleteProjectDocumentObjects(uploadedDocumentObjectKeys).catch(() => undefined);
+    }
+
+    await prisma.project
+      .delete({
+        where: { id: project.id },
+      })
+      .catch(() => undefined);
+
+    const context =
+      input.imageFiles.length > 0 && input.documentFiles.length > 0
+        ? "mixed"
+        : input.documentFiles.length > 0
+          ? "document"
+          : "image";
+
+    return mapProjectAssetError(error, context);
   }
 
   revalidatePath("/dashboard");
@@ -456,6 +700,20 @@ export async function createProjectAction(
     message: "Projet créé avec succès. Vous pouvez maintenant ajouter les besoins.",
     projectId: project.id,
   };
+}
+
+type ProjectDocumentStorageRecord = {
+  id: string;
+  storagePath: string;
+};
+
+function isMissingProjectDocumentTableError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021") {
+    return true;
+  }
+
+  const reason = error instanceof Error ? error.message : "";
+  return /ProjectDocument|relation \"ProjectDocument\" does not exist/i.test(reason);
 }
 
 export async function updateProjectAction(
@@ -510,13 +768,68 @@ export async function updateProjectAction(
     };
   }
 
+  let hasProjectDocumentTable = true;
+  let existingDocuments: ProjectDocumentStorageRecord[] = [];
+  let existingDocumentsQueryError: unknown = null;
+
+  try {
+    existingDocuments = await prisma.$queryRaw<ProjectDocumentStorageRecord[]>`
+      SELECT "id", "storagePath"
+      FROM "ProjectDocument"
+      WHERE "projectId" = ${project.id}
+      ORDER BY "sortOrder" ASC, "createdAt" ASC
+    `;
+  } catch (error) {
+    if (!isMissingProjectDocumentTableError(error)) {
+      existingDocumentsQueryError = error;
+    } else {
+      hasProjectDocumentTable = false;
+    }
+  }
+
+  if (existingDocumentsQueryError) {
+    const reason =
+      existingDocumentsQueryError instanceof Error
+        ? existingDocumentsQueryError.message
+        : "Erreur inconnue.";
+    return {
+      ok: false,
+      message:
+        process.env.NODE_ENV === "development"
+          ? `Impossible de charger les documents du projet. Détail: ${reason}`
+          : "Impossible de charger les documents du projet pour le moment.",
+    };
+  }
+
   const removeImageIds = formData
     .getAll("removeImageIds")
     .filter((value): value is string => typeof value === "string" && value.length > 0);
-  const removableImages = project.images.filter((image) => removeImageIds.includes(image.id));
-  const projectedExistingImageCount = project._count.images - removableImages.length;
+  const removeDocumentIds = formData
+    .getAll("removeDocumentIds")
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
 
-  const parsed = parseAndValidateProjectForm(formData, projectedExistingImageCount);
+  if (!hasProjectDocumentTable && removeDocumentIds.length > 0) {
+    return {
+      ok: false,
+      message:
+        "La table ProjectDocument est absente dans la base. Exécutez le SQL de création de table puis réessayez.",
+    };
+  }
+
+  const removableImages = project.images.filter((image) => removeImageIds.includes(image.id));
+  const removableDocuments = existingDocuments.filter((document) =>
+    removeDocumentIds.includes(document.id)
+  );
+
+  const projectedExistingImageCount = project._count.images - removableImages.length;
+  const projectedExistingDocumentCount =
+    existingDocuments.length - removableDocuments.length;
+
+  const parsed = parseAndValidateProjectForm(formData, {
+    currentImageCount: projectedExistingImageCount,
+    currentDocumentCount: projectedExistingDocumentCount,
+  });
+
   if (!parsed.data) {
     return {
       ok: false,
@@ -526,22 +839,51 @@ export async function updateProjectAction(
   }
 
   const input = parsed.data;
-  let uploadedObjectKeys: string[] = [];
-  let uploadedStorageKeys: string[] = [];
 
-  if (input.imageFiles.length > 0) {
-    try {
-      const uploadResult = await uploadProjectImagesToStorage(
+  if (!hasProjectDocumentTable && input.documentFiles.length > 0) {
+    return {
+      ok: false,
+      message:
+        "La table ProjectDocument est absente dans la base. Exécutez le SQL de création de table puis réessayez.",
+    };
+  }
+
+  let uploadedImageObjectKeys: string[] = [];
+  let uploadedDocumentObjectKeys: string[] = [];
+  let uploadedImageStorageKeys: string[] = [];
+  let uploadedDocuments: ProjectDocumentInsertData[] = [];
+
+  try {
+    if (input.imageFiles.length > 0) {
+      const imageUploadResult = await uploadProjectImagesToStorage(
         session.user.id,
         project.id,
         input.imageFiles,
         projectedExistingImageCount
       );
-      uploadedObjectKeys = uploadResult.uploadedObjectKeys;
-      uploadedStorageKeys = uploadResult.uploadedStorageKeys;
-    } catch (error) {
-      return mapProjectImageError(error);
+      uploadedImageObjectKeys = imageUploadResult.uploadedObjectKeys;
+      uploadedImageStorageKeys = imageUploadResult.uploadedStorageKeys;
     }
+
+    if (input.documentFiles.length > 0 && hasProjectDocumentTable) {
+      const documentUploadResult = await uploadProjectDocumentsToStorage(
+        session.user.id,
+        project.id,
+        input.documentFiles,
+        projectedExistingDocumentCount
+      );
+      uploadedDocumentObjectKeys = documentUploadResult.uploadedObjectKeys;
+      uploadedDocuments = documentUploadResult.uploadedDocuments;
+    }
+  } catch (error) {
+    const context =
+      input.imageFiles.length > 0 && input.documentFiles.length > 0
+        ? "mixed"
+        : input.documentFiles.length > 0
+          ? "document"
+          : "image";
+
+    return mapProjectAssetError(error, context);
   }
 
   try {
@@ -575,28 +917,58 @@ export async function updateProjectAction(
         `;
       }
 
-      if (uploadedStorageKeys.length > 0) {
+      if (hasProjectDocumentTable && removableDocuments.length > 0) {
+        await tx.$executeRaw`
+          DELETE FROM "ProjectDocument"
+          WHERE "projectId" = ${project.id}
+            AND "id" IN (${Prisma.join(removableDocuments.map((document) => document.id))})
+        `;
+      }
+
+      if (uploadedImageStorageKeys.length > 0) {
         await insertProjectImageRecords(
           tx,
           project.id,
-          uploadedStorageKeys,
+          uploadedImageStorageKeys,
           projectedExistingImageCount
         );
       }
 
+      if (hasProjectDocumentTable && uploadedDocuments.length > 0) {
+        await insertProjectDocumentRecords(
+          tx,
+          project.id,
+          uploadedDocuments,
+          projectedExistingDocumentCount
+        );
+      }
+
       await normalizeProjectImageOrdering(tx, project.id);
+      if (hasProjectDocumentTable) {
+        await normalizeProjectDocumentOrdering(tx, project.id);
+      }
     });
   } catch (error) {
-    if (uploadedObjectKeys.length > 0) {
-      await deleteProjectImageObjects(uploadedObjectKeys);
+    if (uploadedImageObjectKeys.length > 0) {
+      await deleteProjectImageObjects(uploadedImageObjectKeys).catch(() => undefined);
     }
 
-    if (uploadedStorageKeys.length > 0) {
-      return mapProjectImageError(error);
+    if (uploadedDocumentObjectKeys.length > 0) {
+      await deleteProjectDocumentObjects(uploadedDocumentObjectKeys).catch(() => undefined);
     }
 
-    const reason =
-      error instanceof Error ? error.message : "Erreur inconnue.";
+    const context =
+      uploadedImageStorageKeys.length > 0 && uploadedDocuments.length > 0
+        ? "mixed"
+        : uploadedDocuments.length > 0
+          ? "document"
+          : "image";
+
+    if (uploadedImageStorageKeys.length > 0 || uploadedDocuments.length > 0) {
+      return mapProjectAssetError(error, context);
+    }
+
+    const reason = error instanceof Error ? error.message : "Erreur inconnue.";
     console.error("Project update failed:", reason);
     return {
       ok: false,
@@ -614,6 +986,15 @@ export async function updateProjectAction(
         console.error("Failed to delete removed project images from storage:", reason);
       }
     );
+  }
+
+  if (hasProjectDocumentTable && removableDocuments.length > 0) {
+    await deleteProjectDocumentObjects(
+      removableDocuments.map((document) => document.storagePath)
+    ).catch((error) => {
+      const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+      console.error("Failed to delete removed project documents from storage:", reason);
+    });
   }
 
   revalidatePath("/dashboard");

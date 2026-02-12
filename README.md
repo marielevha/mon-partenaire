@@ -75,6 +75,19 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - suppression unitaire et action globale `Tout retirer`,
   - réordonnancement automatique des images restantes (cover + sort order).
 - Prévisualisation client des nouvelles images sélectionnées avant soumission.
+- Gestion complète des documents projet :
+  - stockage et lecture via MinIO/S3 (`ProjectDocument`),
+  - upload depuis création/édition,
+  - suppression unitaire et `Tout retirer` dans l'édition,
+  - section documents sur la page publique avec boutons `Prévisualiser` et `Télécharger`.
+- Nouvelle API de documents : `GET /api/project-documents/[...key]`
+  - support du mode inline avec `?preview=1`.
+- Menu dashboard enrichi avec `Mes projets`.
+- Nouvelle page dédiée `Mes projets` :
+  - route : `/dashboard/projects`,
+  - pagination `10/25/50/100`,
+  - actions `Modifier`, `Voir page publique`, changement de statut.
+- Correctif React : suppression de la boucle de rendu (`Maximum update depth exceeded`) dans `CreateProjectForm`.
 
 ### Formulaire de contact
 

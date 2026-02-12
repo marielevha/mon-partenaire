@@ -47,6 +47,13 @@ type CreateProjectFormProps = {
     url: string | null;
     alt: string;
   }>;
+  existingDocuments?: Array<{
+    id: string;
+    name: string;
+    url: string | null;
+    mimeType?: string | null;
+    sizeBytes?: number | null;
+  }>;
 };
 
 const DEFAULT_FORM_VALUES: ProjectFormValues = {
@@ -88,6 +95,38 @@ type SelectedImagePreview = {
   url: string;
   name: string;
 };
+
+type SelectedDocumentPreview = {
+  key: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+function keepOnlyExistingIds(previousIds: string[], existingIds: Set<string>) {
+  let hasChanged = false;
+  const nextIds: string[] = [];
+
+  for (const id of previousIds) {
+    if (existingIds.has(id)) {
+      nextIds.push(id);
+    } else {
+      hasChanged = true;
+    }
+  }
+
+  return hasChanged ? nextIds : previousIds;
+}
+
+function formatFileSize(sizeBytes?: number | null) {
+  if (typeof sizeBytes !== "number" || Number.isNaN(sizeBytes) || sizeBytes < 0) {
+    return "Taille inconnue";
+  }
+
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function buildFormValues(initialValues?: Partial<ProjectFormValues>): ProjectFormValues {
   return {
@@ -156,6 +195,7 @@ export function CreateProjectForm({
   initialValues,
   projectId,
   existingImages = [],
+  existingDocuments = [],
 }: CreateProjectFormProps) {
   const formActionFn = action ?? createProjectAction;
   const [state, formAction] = useActionState(formActionFn, initialState);
@@ -167,13 +207,29 @@ export function CreateProjectForm({
   const [selectedImagePreviews, setSelectedImagePreviews] = useState<
     SelectedImagePreview[]
   >([]);
+  const [selectedDocumentPreviews, setSelectedDocumentPreviews] = useState<
+    SelectedDocumentPreview[]
+  >([]);
   const [selectedRemovalImageIds, setSelectedRemovalImageIds] = useState<string[]>([]);
+  const [selectedRemovalDocumentIds, setSelectedRemovalDocumentIds] = useState<string[]>(
+    []
+  );
 
   useEffect(() => {
+    const existingImageIds = new Set(existingImages.map((image) => image.id));
     setSelectedRemovalImageIds((prevIds) =>
-      prevIds.filter((id) => existingImages.some((image) => image.id === id))
+      keepOnlyExistingIds(prevIds, existingImageIds)
     );
   }, [existingImages]);
+
+  useEffect(() => {
+    const existingDocumentIds = new Set(
+      existingDocuments.map((document) => document.id)
+    );
+    setSelectedRemovalDocumentIds((prevIds) =>
+      keepOnlyExistingIds(prevIds, existingDocumentIds)
+    );
+  }, [existingDocuments]);
 
   useEffect(() => {
     return () => {
@@ -201,6 +257,21 @@ export function CreateProjectForm({
     });
   };
 
+  const handleProjectDocumentsChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+
+    setSelectedDocumentPreviews(
+      files.map((file, index) => ({
+        key: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+        name: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      }))
+    );
+  };
+
   const allExistingImagesSelected =
     existingImages.length > 0 &&
     selectedRemovalImageIds.length === existingImages.length;
@@ -221,6 +292,26 @@ export function CreateProjectForm({
     );
   };
 
+  const allExistingDocumentsSelected =
+    existingDocuments.length > 0 &&
+    selectedRemovalDocumentIds.length === existingDocuments.length;
+
+  const handleToggleAllExistingDocuments = () => {
+    if (allExistingDocumentsSelected) {
+      setSelectedRemovalDocumentIds([]);
+      return;
+    }
+    setSelectedRemovalDocumentIds(existingDocuments.map((document) => document.id));
+  };
+
+  const handleToggleExistingDocument = (documentId: string) => {
+    setSelectedRemovalDocumentIds((prevIds) =>
+      prevIds.includes(documentId)
+        ? prevIds.filter((id) => id !== documentId)
+        : [...prevIds, documentId]
+    );
+  };
+
   useEffect(() => {
     if (state?.ok) {
       if (isCreateMode) {
@@ -232,7 +323,9 @@ export function CreateProjectForm({
         });
         return [];
       });
+      setSelectedDocumentPreviews([]);
       setSelectedRemovalImageIds([]);
+      setSelectedRemovalDocumentIds([]);
       router.refresh();
     }
   }, [isCreateMode, router, state]);
@@ -432,6 +525,11 @@ export function CreateProjectForm({
             {state.fieldErrors.projectImages}
           </p>
         ) : null}
+        {state?.ok === false && state.fieldErrors?.projectDocuments ? (
+          <p className="mt-2 rounded-md border border-rose-300/60 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-600 dark:text-rose-200">
+            {state.fieldErrors.projectDocuments}
+          </p>
+        ) : null}
 
         {mode === "edit" ? (
           <div className="mt-3">
@@ -496,6 +594,67 @@ export function CreateProjectForm({
           </div>
         ) : null}
 
+        {mode === "edit" ? (
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="dashboard-faint text-xs">Documents existants</p>
+              {existingDocuments.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleToggleAllExistingDocuments}
+                  className="dashboard-btn-secondary rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                >
+                  {allExistingDocumentsSelected ? "Tout conserver" : "Tout retirer"}
+                </button>
+              ) : null}
+            </div>
+
+            {existingDocuments.length === 0 ? (
+              <p className="dashboard-faint rounded-lg border border-dashed px-3 py-2 text-xs">
+                Aucun document enregistré pour ce projet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {existingDocuments.map((document) => (
+                  <label
+                    key={document.id}
+                    className="dashboard-panel flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      {document.url ? (
+                        <a
+                          href={document.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate font-medium text-accent underline-offset-2 hover:underline"
+                        >
+                          {document.name}
+                        </a>
+                      ) : (
+                        <p className="truncate font-medium">{document.name}</p>
+                      )}
+                      <p className="dashboard-faint mt-0.5">
+                        {document.mimeType || "Type inconnu"} • {formatFileSize(document.sizeBytes)}
+                      </p>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1">
+                      <input
+                        type="checkbox"
+                        name="removeDocumentIds"
+                        value={document.id}
+                        checked={selectedRemovalDocumentIds.includes(document.id)}
+                        onChange={() => handleToggleExistingDocument(document.id)}
+                        className="h-3.5 w-3.5 rounded border-slate-400 bg-transparent text-rose-500 focus:ring-rose-400/45"
+                      />
+                      Retirer
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="dashboard-faint">Images (JPG, PNG, WEBP)</span>
@@ -520,8 +679,9 @@ export function CreateProjectForm({
               type="file"
               name="projectDocuments"
               multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.json"
               className={fileInputStyles}
+              onChange={handleProjectDocumentsChange}
             />
             <p className="dashboard-faint text-xs">
               Pitch deck, business plan, étude de marché, etc.
@@ -548,6 +708,27 @@ export function CreateProjectForm({
                     />
                   </div>
                   <p className="dashboard-faint mt-2 truncate">{preview.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {selectedDocumentPreviews.length > 0 ? (
+          <div className="mt-3">
+            <p className="dashboard-faint mb-2 text-xs">
+              Documents sélectionnés ({selectedDocumentPreviews.length})
+            </p>
+            <div className="space-y-2">
+              {selectedDocumentPreviews.map((preview) => (
+                <div
+                  key={preview.key}
+                  className="dashboard-panel flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
+                >
+                  <p className="truncate font-medium">{preview.name}</p>
+                  <p className="dashboard-faint shrink-0">
+                    {preview.mimeType} • {formatFileSize(preview.sizeBytes)}
+                  </p>
                 </div>
               ))}
             </div>

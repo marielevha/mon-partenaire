@@ -6,7 +6,10 @@ import type {
   ProjectVisibility,
 } from "@prisma/client";
 import prisma from "@/src/lib/prisma";
-import { resolveS3PublicUrlFromStoredValue } from "@/src/lib/s3-storage";
+import {
+  resolveS3DocumentPublicUrlFromStoredValue,
+  resolveS3PublicUrlFromStoredValue,
+} from "@/src/lib/s3-storage";
 
 const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
   "AGRIBUSINESS",
@@ -59,6 +62,10 @@ export async function createProjectDraft(input: CreateProjectDraftInput) {
 
 export function buildProjectImagePublicUrl(storagePath: string): string | null {
   return resolveS3PublicUrlFromStoredValue(storagePath);
+}
+
+export function buildProjectDocumentPublicUrl(storagePath: string): string | null {
+  return resolveS3DocumentPublicUrlFromStoredValue(storagePath);
 }
 
 export async function getPublicProjectsList(filters?: {

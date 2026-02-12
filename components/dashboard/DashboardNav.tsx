@@ -12,10 +12,20 @@ const navItems = [
   {
     href: "/dashboard",
     label: "Vue d'ensemble",
+    isActive: (pathname: string) => pathname === "/dashboard",
+  },
+  {
+    href: "/dashboard/projects",
+    label: "Mes projets",
+    isActive: (pathname: string) =>
+      pathname === "/dashboard/projects" ||
+      (pathname.startsWith("/dashboard/projects/") &&
+        pathname !== "/dashboard/projects/new"),
   },
   {
     href: "/dashboard/projects/new",
     label: "Créer un projet",
+    isActive: (pathname: string) => pathname === "/dashboard/projects/new",
   },
 ];
 
@@ -25,7 +35,7 @@ export function DashboardNav({ mobile = false }: DashboardNavProps) {
   return (
     <nav className={cn("space-y-2", mobile && "space-y-0")}>
       {navItems.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = item.isActive(pathname);
         return (
           <Link
             key={item.href}

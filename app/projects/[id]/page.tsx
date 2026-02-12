@@ -10,7 +10,10 @@ import { Card } from "@/components/ui/card";
 import { ProjectBadge } from "@/components/projects/ProjectBadge";
 import ProjectImageGallery from "@/components/projects/ProjectImageGallery";
 import { ProjectContactActions } from "@/components/projects/ProjectContactActions";
-import { buildProjectImagePublicUrl } from "@/src/lib/projects";
+import {
+  buildProjectDocumentPublicUrl,
+  buildProjectImagePublicUrl,
+} from "@/src/lib/projects";
 
 type Props = {
   params: { id: string };
@@ -61,6 +64,32 @@ const getProjectById = cache(async (projectId: string) => {
   });
 });
 
+const getProjectDocumentsById = cache(async (projectId: string) => {
+  return prisma.$queryRaw<
+    Array<{
+      id: string;
+      storagePath: string;
+      originalName: string;
+      mimeType: string | null;
+      sizeBytes: number | null;
+    }>
+  >`
+    SELECT "id", "storagePath", "originalName", "mimeType", "sizeBytes"
+    FROM "ProjectDocument"
+    WHERE "projectId" = ${projectId}
+    ORDER BY "sortOrder" ASC, "createdAt" ASC
+  `.catch((error) => {
+    const isMissingTable =
+      String(error).includes("P2021") ||
+      String(error).includes("ProjectDocument") ||
+      String(error).includes('relation "ProjectDocument" does not exist');
+    if (isMissingTable) {
+      return [];
+    }
+    throw error;
+  });
+});
+
 function formatMoney(amount?: number | null) {
   if (!amount && amount !== 0) return "—";
   return `${amount.toLocaleString("fr-FR")} FCFA`;
@@ -79,6 +108,31 @@ function truncateText(text: string, maxLength: number) {
     return text;
   }
   return `${text.slice(0, maxLength - 1).trim()}…`;
+}
+
+function formatFileSize(sizeBytes?: number | null) {
+  if (typeof sizeBytes !== "number" || Number.isNaN(sizeBytes) || sizeBytes < 0) {
+    return "Taille inconnue";
+  }
+
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function canPreviewDocument(mimeType?: string | null, fileName?: string) {
+  const normalizedMime = (mimeType || "").toLowerCase();
+
+  if (
+    normalizedMime.startsWith("text/") ||
+    normalizedMime === "application/pdf" ||
+    normalizedMime === "application/json"
+  ) {
+    return true;
+  }
+
+  const extension = fileName?.toLowerCase().split(".").pop();
+  return extension === "pdf" || extension === "txt" || extension === "csv" || extension === "json";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -189,6 +243,8 @@ export default async function ProjectDetailPage({ params }: Props) {
     redirect("/projects");
   }
 
+  const projectDocuments = await getProjectDocumentsById(project.id);
+
   const uploadedImages = project.images
     .map((image) => buildProjectImagePublicUrl(image.storagePath))
     .filter((url): url is string => Boolean(url));
@@ -197,6 +253,25 @@ export default async function ProjectDetailPage({ params }: Props) {
     uploadedImages.length > 0
       ? uploadedImages
       : ["/landing/project-1.svg", "/landing/project-2.svg", "/landing/project-3.svg"];
+  const documents = projectDocuments
+    .map((document: (typeof projectDocuments)[number]) => ({
+      id: document.id,
+      name: document.originalName,
+      mimeType: document.mimeType,
+      sizeBytes: document.sizeBytes,
+      url: buildProjectDocumentPublicUrl(document.storagePath),
+    }))
+    .filter(
+      (
+        document
+      ): document is {
+        id: string;
+        name: string;
+        mimeType: string | null;
+        sizeBytes: number | null;
+        url: string;
+      } => Boolean(document.url)
+    );
 
   const totalNeeds = project.needs.length;
   const openNeeds = project.needs.filter((need) => !need.isFilled);
@@ -328,6 +403,61 @@ export default async function ProjectDetailPage({ params }: Props) {
                       <p key={`${project.id}-paragraph-${index}`}>{paragraph}</p>
                     ))}
                 </div>
+              </Card>
+
+              <Card className="space-y-4 p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Documents du projet</h2>
+                  <span className="text-xs text-text-secondary">
+                    {documents.length} disponible(s)
+                  </span>
+                </div>
+
+                {documents.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-4 text-sm text-text-secondary">
+                    Aucun document partagé pour ce projet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {documents.map((document) => (
+                      <div
+                        key={document.id}
+                        className="rounded-lg border border-border/50 bg-background/60 px-4 py-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-text-primary">
+                              {document.name}
+                            </p>
+                            <p className="text-xs text-text-secondary">
+                              {document.mimeType || "Type inconnu"} • {formatFileSize(document.sizeBytes)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {canPreviewDocument(document.mimeType, document.name) ? (
+                              <a
+                                href={`${document.url}?preview=1`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center rounded-md border border-border/60 px-3 py-1.5 text-xs font-semibold text-text-primary transition-colors hover:bg-surface"
+                              >
+                                Prévisualiser
+                              </a>
+                            ) : null}
+                            <a
+                              href={document.url ?? "#"}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center rounded-md border border-border/60 px-3 py-1.5 text-xs font-semibold text-text-primary transition-colors hover:bg-surface"
+                            >
+                              Télécharger
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

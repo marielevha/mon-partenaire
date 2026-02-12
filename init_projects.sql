@@ -67,14 +67,37 @@ CREATE TABLE "ProjectImage" (
     CONSTRAINT "ProjectImage_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ProjectDocument" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "storagePath" TEXT NOT NULL,
+    "originalName" TEXT NOT NULL,
+    "mimeType" TEXT,
+    "sizeBytes" INTEGER,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ProjectDocument_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "ProjectImage_storagePath_key" ON "ProjectImage"("storagePath");
 
 -- CreateIndex
 CREATE INDEX "ProjectImage_projectId_sortOrder_idx" ON "ProjectImage"("projectId", "sortOrder");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectDocument_storagePath_key" ON "ProjectDocument"("storagePath");
+
+-- CreateIndex
+CREATE INDEX "ProjectDocument_projectId_sortOrder_idx" ON "ProjectDocument"("projectId", "sortOrder");
+
 -- AddForeignKey
 ALTER TABLE "ProjectNeed" ADD CONSTRAINT "ProjectNeed_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProjectImage" ADD CONSTRAINT "ProjectImage_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProjectDocument" ADD CONSTRAINT "ProjectDocument_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

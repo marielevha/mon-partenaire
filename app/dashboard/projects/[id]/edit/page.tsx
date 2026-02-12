@@ -6,7 +6,10 @@ import {
   CreateProjectForm,
   type ProjectFormValues,
 } from "@/components/dashboard/CreateProjectForm";
-import { buildProjectImagePublicUrl } from "@/src/lib/projects";
+import {
+  buildProjectDocumentPublicUrl,
+  buildProjectImagePublicUrl,
+} from "@/src/lib/projects";
 import prisma from "@/src/lib/prisma";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
@@ -102,6 +105,36 @@ export default async function DashboardEditProjectPage({
     url: buildProjectImagePublicUrl(image.storagePath),
     alt: image.alt || `${project.title} - image ${index + 1}`,
   }));
+  const existingDocuments = await prisma.$queryRaw<
+    Array<{
+      id: string;
+      storagePath: string;
+      originalName: string;
+      mimeType: string | null;
+      sizeBytes: number | null;
+    }>
+  >`
+    SELECT "id", "storagePath", "originalName", "mimeType", "sizeBytes"
+    FROM "ProjectDocument"
+    WHERE "projectId" = ${project.id}
+    ORDER BY "sortOrder" ASC, "createdAt" ASC
+  `.catch((error) => {
+    const isMissingTable =
+      String(error).includes("P2021") ||
+      String(error).includes("ProjectDocument") ||
+      String(error).includes('relation "ProjectDocument" does not exist');
+    if (isMissingTable) {
+      return [];
+    }
+    throw error;
+  });
+  const mappedDocuments = existingDocuments.map((document) => ({
+    id: document.id,
+    name: document.originalName,
+    mimeType: document.mimeType,
+    sizeBytes: document.sizeBytes,
+    url: buildProjectDocumentPublicUrl(document.storagePath),
+  }));
 
   return (
     <section className="space-y-6">
@@ -119,7 +152,8 @@ export default async function DashboardEditProjectPage({
           projet. Les nouvelles images ajoutées seront intégrées à la galerie existante.
         </p>
         <p className="dashboard-faint mt-2 text-xs">
-          Images existantes: {project._count.images}
+          Images existantes: {project._count.images} • Documents existants:{" "}
+          {mappedDocuments.length}
         </p>
       </div>
 
@@ -130,6 +164,7 @@ export default async function DashboardEditProjectPage({
           initialValues={initialValues}
           projectId={project.id}
           existingImages={existingImages}
+          existingDocuments={mappedDocuments}
         />
       </div>
     </section>
