@@ -48,9 +48,41 @@ function categoryTone(category: DocumentCategory) {
 type DocumentsLibraryProps = {
   isAuthenticated: boolean;
   templates: DocumentTemplate[];
+  labels: {
+    modeDownloadTitle: string;
+    modeDownloadDescription: string;
+    modeInteractiveTitle: string;
+    modeInteractiveDescription: string;
+    filtersTitle: string;
+    filtersDescription: string;
+    tabDownload: string;
+    tabInteractive: string;
+    filterSector: string;
+    filterSectorAll: string;
+    filterLevel: string;
+    filterLevelAll: string;
+    filterType: string;
+    filterTypeAll: string;
+    filterObjective: string;
+    filterObjectiveAll: string;
+    filterSearch: string;
+    filterSearchPlaceholder: string;
+    availableCountSuffix: string;
+    resetFilters: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    groupedCountSuffix: string;
+    actionUse: string;
+    actionLoginToUse: string;
+    actionDownload: string;
+  };
 };
 
-export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibraryProps) {
+export function DocumentsLibrary({
+  isAuthenticated,
+  templates,
+  labels,
+}: DocumentsLibraryProps) {
   const [usageMode, setUsageMode] = useState<UsageMode>("download");
   const [sector, setSector] = useState<DocumentSector | typeof ALL_FILTER_VALUE>(
     ALL_FILTER_VALUE
@@ -118,27 +150,22 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
     <section className="space-y-8">
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-soft">
-          <p className="text-sm font-semibold text-text-primary">Mode A - Telechargement simple</p>
+          <p className="text-sm font-semibold text-text-primary">{labels.modeDownloadTitle}</p>
           <p className="mt-2 text-sm text-text-secondary">
-            Telechargez un modele editable, adaptez-le a votre contexte, puis reutilisez-le.
+            {labels.modeDownloadDescription}
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-soft">
-          <p className="text-sm font-semibold text-text-primary">Mode B - Mode interactif</p>
-          <p className="mt-2 text-sm text-text-secondary">
-            Utilisez un modele depuis votre compte pour preparer un brouillon de projet dans le
-            dashboard.
-          </p>
+          <p className="text-sm font-semibold text-text-primary">{labels.modeInteractiveTitle}</p>
+          <p className="mt-2 text-sm text-text-secondary">{labels.modeInteractiveDescription}</p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-surface p-5 shadow-soft">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-text-primary">Filtres intelligents</p>
-            <p className="mt-1 text-sm text-text-secondary">
-              Combinez secteur, niveau, type de fichier et objectif.
-            </p>
+            <p className="text-sm font-semibold text-text-primary">{labels.filtersTitle}</p>
+            <p className="mt-1 text-sm text-text-secondary">{labels.filtersDescription}</p>
           </div>
           <div className="inline-flex rounded-xl border border-border p-1">
             <button
@@ -151,7 +178,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
                   : "text-text-secondary hover:text-text-primary"
               )}
             >
-              Telechargement
+              {labels.tabDownload}
             </button>
             <button
               type="button"
@@ -163,14 +190,14 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
                   : "text-text-secondary hover:text-text-primary"
               )}
             >
-              Interactif
+              {labels.tabInteractive}
             </button>
           </div>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           <label className="space-y-1 text-xs text-text-secondary">
-            <span>Secteur</span>
+            <span>{labels.filterSector}</span>
             <select
               value={sector}
               onChange={(event) =>
@@ -178,7 +205,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
               }
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             >
-              <option value={ALL_FILTER_VALUE}>Tous les secteurs</option>
+              <option value={ALL_FILTER_VALUE}>{labels.filterSectorAll}</option>
               {DOCUMENT_SECTORS.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -188,7 +215,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
           </label>
 
           <label className="space-y-1 text-xs text-text-secondary">
-            <span>Niveau</span>
+            <span>{labels.filterLevel}</span>
             <select
               value={level}
               onChange={(event) =>
@@ -196,7 +223,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
               }
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             >
-              <option value={ALL_FILTER_VALUE}>Tous les niveaux</option>
+              <option value={ALL_FILTER_VALUE}>{labels.filterLevelAll}</option>
               {DOCUMENT_LEVELS.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -206,7 +233,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
           </label>
 
           <label className="space-y-1 text-xs text-text-secondary">
-            <span>Type</span>
+            <span>{labels.filterType}</span>
             <select
               value={fileType}
               onChange={(event) =>
@@ -214,7 +241,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
               }
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             >
-              <option value={ALL_FILTER_VALUE}>Tous les types</option>
+              <option value={ALL_FILTER_VALUE}>{labels.filterTypeAll}</option>
               {DOCUMENT_FILE_TYPES.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -224,7 +251,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
           </label>
 
           <label className="space-y-1 text-xs text-text-secondary">
-            <span>Objectif</span>
+            <span>{labels.filterObjective}</span>
             <select
               value={objective}
               onChange={(event) =>
@@ -232,7 +259,7 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
               }
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             >
-              <option value={ALL_FILTER_VALUE}>Tous les objectifs</option>
+              <option value={ALL_FILTER_VALUE}>{labels.filterObjectiveAll}</option>
               {DOCUMENT_OBJECTIVES.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -242,11 +269,11 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
           </label>
 
           <label className="space-y-1 text-xs text-text-secondary">
-            <span>Recherche</span>
+            <span>{labels.filterSearch}</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="business plan, statuts..."
+              placeholder={labels.filterSearchPlaceholder}
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             />
           </label>
@@ -255,31 +282,31 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-text-secondary">
             <span className="font-semibold text-text-primary">{filteredTemplates.length}</span>{" "}
-            modele(s) disponibles
+            {labels.availableCountSuffix}
           </p>
           <button
             type="button"
             onClick={clearFilters}
             className="text-sm font-medium text-accent transition-colors hover:text-accent-strong"
           >
-            Reinitialiser les filtres
+            {labels.resetFilters}
           </button>
         </div>
       </div>
 
       {groupedTemplates.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-soft">
-          <p className="text-base font-semibold text-text-primary">Aucun modele trouve</p>
-          <p className="mt-2 text-sm text-text-secondary">
-            Ajustez les filtres ou la recherche pour afficher plus de resultats.
-          </p>
+          <p className="text-base font-semibold text-text-primary">{labels.emptyTitle}</p>
+          <p className="mt-2 text-sm text-text-secondary">{labels.emptyDescription}</p>
         </div>
       ) : (
         groupedTemplates.map((group) => (
           <section key={group.category} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-text-primary">{group.category}</h2>
-              <p className="text-sm text-text-secondary">{group.items.length} modele(s)</p>
+              <p className="text-sm text-text-secondary">
+                {group.items.length} {labels.groupedCountSuffix}
+              </p>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -296,9 +323,9 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
                 const primaryLabel =
                   usageMode === "interactive"
                     ? isAuthenticated
-                      ? "Utiliser ce modele"
-                      : "Se connecter pour utiliser"
-                    : "Telecharger le modele";
+                      ? labels.actionUse
+                      : labels.actionLoginToUse
+                    : labels.actionDownload;
                 const secondaryHref =
                   usageMode === "interactive"
                     ? downloadHref
@@ -307,10 +334,10 @@ export function DocumentsLibrary({ isAuthenticated, templates }: DocumentsLibrar
                       : interactiveLoginLink;
                 const secondaryLabel =
                   usageMode === "interactive"
-                    ? "Telecharger le modele"
+                    ? labels.actionDownload
                     : isAuthenticated
-                      ? "Utiliser ce modele"
-                      : "Se connecter pour utiliser";
+                      ? labels.actionUse
+                      : labels.actionLoginToUse;
 
                 return (
                   <article

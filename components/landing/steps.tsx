@@ -1,42 +1,26 @@
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
+import { getI18n } from "@/src/i18n";
 
-const steps = [
-  {
-    title: "Présentez votre projet",
-    description:
-      "Décrivez l’activité, les besoins, et les apports déjà disponibles.",
-  },
-  {
-    title: "Identifiez le bon partenaire",
-    description:
-      "Analysez les profils, les compétences et le niveau d’engagement proposé.",
-  },
-  {
-    title: "Formalisez l’accord",
-    description:
-      "Définissez les parts, sécurisez les échanges et préparez les statuts.",
-  },
-];
+export async function Steps() {
+  const messages = await getI18n();
+  const t = messages.landing.steps;
 
-export function Steps() {
   return (
     <Section id="comment-ca-marche" className="bg-surface-accent/70">
       <Container>
         <div className="grid gap-10 lg:grid-cols-[1fr_0.75fr] lg:items-start">
           <div>
-            <p className="text-sm font-semibold text-accent">Comment ça marche</p>
+            <p className="text-sm font-semibold text-accent">{t.eyebrow}</p>
             <h2 className="mt-2 text-3xl font-semibold text-text-primary">
-              Un parcours guidé pour verrouiller l’accord.
+              {t.title}
             </h2>
             <p className="mt-4 text-sm text-text-secondary">
-              Chaque étape génère des livrables prêts à être partagés avec vos
-              partenaires : synthèse des apports, cadrage du projet et prévisions
-              financières.
+              {t.description}
             </p>
             <div className="mt-8 space-y-4">
-              {steps.map((step, index) => (
+              {t.items.map((step, index) => (
                 <Card
                   key={step.title}
                   className="flex items-start gap-5 border-border/60 bg-surface/80 shadow-medium"
@@ -60,17 +44,15 @@ export function Steps() {
             <div className="pointer-events-none absolute inset-0 bg-hero-glow opacity-80" />
             <div className="relative space-y-6">
               <div>
-                <p className="text-sm font-semibold text-accent">Livrables</p>
+                <p className="text-sm font-semibold text-accent">
+                  {t.deliverablesEyebrow}
+                </p>
                 <h3 className="mt-2 text-2xl font-semibold text-text-primary">
-                  Une boîte à outils prête à signer.
+                  {t.deliverablesTitle}
                 </h3>
               </div>
               <div className="space-y-4 text-sm text-text-secondary">
-                {[
-                  "Fiche récapitulative des apports",
-                  "Timeline des jalons et responsabilités",
-                  "Documents juridiques pré-remplis",
-                ].map((item) => (
+                {t.deliverablesItems.map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-accent">
                       <svg

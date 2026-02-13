@@ -4,8 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
 import { cn } from "@/components/ui/utils";
+import { getI18n } from "@/src/i18n";
 
-export function CtaFinal() {
+export async function CtaFinal() {
+  const messages = await getI18n();
+  const t = messages.landing.cta;
+
   return (
     <Section>
       <Container>
@@ -15,35 +19,34 @@ export function CtaFinal() {
           <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div>
               <h2 className="text-3xl font-semibold text-text-primary">
-                Donnez une structure claire à votre partenariat.
+                {t.title}
               </h2>
               <p className="mt-2 text-sm text-text-secondary">
-                Lancez votre projet ou rejoignez une équipe porteuse de sens, en
-                toute confiance.
+                {t.description}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/auth/signup"
                   className={cn(buttonVariants({ variant: "primary", size: "lg" }))}
                 >
-                  Créer un compte
+                  {t.primaryCta}
                 </Link>
                 <Link
                   href="#comment-ca-marche"
                   className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
                 >
-                  Découvrir le cadre
+                  {t.secondaryCta}
                 </Link>
               </div>
             </div>
             <div className="rounded-[var(--radius)] border border-border/60 bg-surface/80 p-5 text-sm text-text-secondary">
               <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-                Inclus
+                {t.includedTitle}
               </p>
               <ul className="mt-3 space-y-2">
-                <li>• Accès immédiat aux modèles juridiques</li>
-                <li>• Tableau de répartition automatique</li>
-                <li>• Modération des projets en 48h</li>
+                {t.includedItems.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
               </ul>
             </div>
           </div>

@@ -171,6 +171,28 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - case `Entreprise déjà créée` décochée par défaut,
   - ajout d'aides contextuelles `?` sur les champs du formulaire projet et besoins.
 
+## Mise à jour récente (i18n & navigation publique)
+
+- Internationalisation centralisée des textes statiques avec 3 langues:
+  - `fr` (français),
+  - `en` (anglais),
+  - `cg` (lingala).
+- Nouveau module i18n:
+  - dictionnaires: `src/i18n/messages/fr.ts`, `src/i18n/messages/en.ts`, `src/i18n/messages/cg.ts`,
+  - résolution locale/cookie: `src/i18n/index.ts`.
+- Sélecteur de langue dans le header (`FR / EN / CG`) avec persistance cookie:
+  - endpoint: `GET /api/locale`,
+  - composant: `components/landing/locale-switcher.tsx`.
+- Correctif réseau/IP sur le changement de langue:
+  - redirection basée sur `x-forwarded-host` / `x-forwarded-proto` pour éviter les retours forcés vers `localhost`.
+- Navigation publique améliorée:
+  - ajout de l'entrée `Accueil` en première position,
+  - état actif du menu selon la route (`/`, `/projects*`, `/documents*`),
+  - composant dédié: `components/landing/header-nav.tsx`.
+- Accès public ouvert sans authentification:
+  - `/projects`,
+  - `/projects/[id]`.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

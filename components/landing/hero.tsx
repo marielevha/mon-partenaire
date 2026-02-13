@@ -6,8 +6,12 @@ import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
 import { FeatureItem } from "@/components/landing/feature-item";
 import { cn } from "@/components/ui/utils";
+import { getI18n } from "@/src/i18n";
 
-export function Hero() {
+export async function Hero() {
+  const messages = await getI18n();
+  const t = messages.landing.hero;
+
   return (
     <Section className="pt-16">
       <Container>
@@ -18,35 +22,32 @@ export function Hero() {
           <div className="relative grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
             <div>
               <Badge className="mb-6 border-border/60 bg-surface/70 text-text-primary shadow-soft">
-                Plateforme Congo-Brazzaville
+                {t.badge}
               </Badge>
               <h1 className="text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl">
-                Construisez votre entreprise avec un{" "}
-                <span className="text-gradient">partenaire fiable.</span>
+                {t.titleBefore} <span className="text-gradient">{t.titleHighlight}</span>
               </h1>
               <p className="mt-5 text-lg text-text-secondary">
-                Mon partenaire orchestre chaque étape : cadrage des apports,
-                sélection des profils et mise en route du projet jusqu’à la création
-                légale.
+                {t.description}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/dashboard"
                   className={cn(buttonVariants({ variant: "primary", size: "lg" }))}
                 >
-                  Publier un projet
+                  {t.primaryCta}
                 </Link>
                 <Link
                   href="/projects"
                   className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
                 >
-                  Explorer les projets
+                  {t.secondaryCta}
                 </Link>
               </div>
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <FeatureItem
-                  title="Apports clarifiés"
-                  description="Cadrez finance, matériel et expertise dès le départ."
+                  title={t.features[0].title}
+                  description={t.features[0].description}
                   icon={
                     <svg
                       aria-hidden="true"
@@ -64,8 +65,8 @@ export function Hero() {
                   }
                 />
                 <FeatureItem
-                  title="Accords sécurisés"
-                  description="Suivez la répartition et les conditions d’entrée."
+                  title={t.features[1].title}
+                  description={t.features[1].description}
                   icon={
                     <svg
                       aria-hidden="true"
@@ -84,47 +85,43 @@ export function Hero() {
               </div>
               <div className="mt-8 flex flex-wrap items-center gap-6 text-sm text-text-secondary">
                 <div>
-                  <p className="text-2xl font-semibold text-text-primary">120+</p>
-                  <p>projets actifs</p>
+                  <p className="text-2xl font-semibold text-text-primary">{t.stats[0].value}</p>
+                  <p>{t.stats[0].label}</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold text-text-primary">93%</p>
-                  <p>match sur profils ciblés</p>
+                  <p className="text-2xl font-semibold text-text-primary">{t.stats[1].value}</p>
+                  <p>{t.stats[1].label}</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-semibold text-text-primary">4 semaines</p>
-                  <p>jusqu’au cadrage final</p>
+                  <p className="text-2xl font-semibold text-text-primary">{t.stats[2].value}</p>
+                  <p>{t.stats[2].label}</p>
                 </div>
               </div>
             </div>
             <div className="relative">
               <div className="absolute -left-6 top-6 hidden rounded-2xl border border-border/60 bg-surface/80 px-4 py-3 text-xs shadow-soft md:block">
-                <p className="font-semibold text-text-primary">Nouveau projet</p>
-                <p className="text-text-secondary">Transformation agricole</p>
+                <p className="font-semibold text-text-primary">{t.floatingCardTopTitle}</p>
+                <p className="text-text-secondary">{t.floatingCardTopSubtitle}</p>
               </div>
               <div className="absolute -right-8 bottom-6 hidden rounded-2xl border border-border/60 bg-surface/80 px-4 py-3 text-xs shadow-soft md:block">
-                <p className="font-semibold text-text-primary">42%</p>
-                <p className="text-text-secondary">objectif atteint</p>
+                <p className="font-semibold text-text-primary">{t.floatingCardBottomTitle}</p>
+                <p className="text-text-secondary">{t.floatingCardBottomSubtitle}</p>
               </div>
               <Card className="relative z-10 overflow-hidden border-border/60 bg-surface/85 shadow-medium">
                 <div className="absolute left-0 top-0 h-32 w-32 -translate-x-12 -translate-y-12 rounded-full bg-accent/15" />
                 <div className="absolute bottom-8 right-0 h-28 w-28 translate-x-10 rounded-full bg-accent-secondary/15 blur-2xl" />
                 <div className="relative space-y-6">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-accent">Tableau de bord</p>
+                    <p className="text-sm font-semibold text-accent">{t.dashboardLabel}</p>
                     <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-                      Actif
+                      {t.dashboardStatus}
                     </span>
                   </div>
                   <h2 className="text-2xl font-semibold text-text-primary">
-                    Pilotez chaque engagement en temps réel.
+                    {t.dashboardTitle}
                   </h2>
                   <div className="space-y-4 text-sm text-text-secondary">
-                    {[
-                      "Répartition des parts et apports",
-                      "Suivi des jalons clés",
-                      "Canal sécurisé pour les échanges",
-                    ].map((item) => (
+                    {t.dashboardItems.map((item) => (
                       <div key={item} className="flex items-center gap-3">
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-accent">
                           <svg
@@ -146,7 +143,7 @@ export function Hero() {
                     href="#comment-ca-marche"
                     className={cn(buttonVariants({ variant: "ghost" }))}
                   >
-                    Voir le parcours complet
+                    {t.dashboardCta}
                   </Link>
                 </div>
               </Card>

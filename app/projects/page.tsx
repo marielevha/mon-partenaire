@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import { getPublicProjectsList } from "@/src/lib/projects";
 import { Header } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
@@ -8,13 +7,6 @@ import { ProjectFilters } from "@/components/projects/ProjectFilters";
 import { ProjectPagination } from "@/components/projects/ProjectPagination";
 
 export default async function ProjectsPage({ searchParams }: { searchParams?: { [key: string]: string | string[] | undefined } }) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect('/auth/login');
-  }
-
   // `searchParams` may be a Promise in newer Next.js runtimes — await it first
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 

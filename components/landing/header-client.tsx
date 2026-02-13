@@ -10,9 +10,23 @@ import { logoutAction } from "@/app/auth/actions";
 interface HeaderClientProps {
   initialSession: Session | null;
   initialFullName?: string | null;
+  labels: {
+    accountFallback: string;
+    connectedAccount: string;
+    dashboard: string;
+    profile: string;
+    support: string;
+    logout: string;
+    login: string;
+    signup: string;
+  };
 }
 
-export function HeaderClient({ initialSession, initialFullName }: HeaderClientProps) {
+export function HeaderClient({
+  initialSession,
+  initialFullName,
+  labels,
+}: HeaderClientProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -24,7 +38,7 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
     typeof initialSession?.user?.user_metadata?.full_name === "string"
       ? initialSession.user.user_metadata.full_name
       : "";
-  const fallbackName = email ? email.split("@")[0] : "Mon compte";
+  const fallbackName = email ? email.split("@")[0] : labels.accountFallback;
   const displayName = initialFullName?.trim() || metadataFullName.trim() || fallbackName;
 
   const initials = useMemo(() => {
@@ -115,8 +129,8 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
             >
               <div className="border-b border-border/70 px-5 py-4">
                 <p className="text-base font-semibold text-text-primary">{displayName}</p>
-                <p className="mt-1 truncate text-sm text-text-secondary">
-                  {email || "Compte connecté"}
+                  <p className="mt-1 truncate text-sm text-text-secondary">
+                  {email || labels.connectedAccount}
                 </p>
               </div>
 
@@ -139,7 +153,7 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
                     <path d="M11 9h6v8h-6z" />
                     <path d="M3 11h6v6H3z" />
                   </svg>
-                  Dashboard
+                  {labels.dashboard}
                 </Link>
                 <Link
                   href="/a-propos"
@@ -157,7 +171,7 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
                     <circle cx="10" cy="6" r="3" />
                     <path d="M4 17a6 6 0 0 1 12 0" />
                   </svg>
-                  Profil
+                  {labels.profile}
                 </Link>
               <Link
                 href="/a-propos#contact"
@@ -176,7 +190,7 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
                   <path d="M10 14v-4" />
                   <path d="M10 6h.01" />
                 </svg>
-                Support
+                {labels.support}
               </Link>
               <div className="my-2 border-t border-border/70" />
               <button
@@ -196,7 +210,7 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
                   <path d="M12 6l4 4-4 4" />
                   <path d="M6 10h10" />
                 </svg>
-                Se déconnecter
+                {labels.logout}
               </button>
               </div>
             </div>
@@ -208,13 +222,13 @@ export function HeaderClient({ initialSession, initialFullName }: HeaderClientPr
             href="/auth/login"
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
           >
-            Se connecter
+            {labels.login}
           </Link>
           <Link
             href="/auth/signup"
             className={cn(buttonVariants({ variant: "primary", size: "sm" }))}
           >
-            Créer un compte
+            {labels.signup}
           </Link>
         </div>
       )}

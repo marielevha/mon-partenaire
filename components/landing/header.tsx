@@ -3,10 +3,16 @@ import Link from "next/link";
 import { Container } from "@/components/landing/container";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderClient } from "@/components/landing/header-client";
+import { HeaderNav } from "@/components/landing/header-nav";
+import { LocaleSwitcher } from "@/components/landing/locale-switcher";
 import { getSessionAction } from "@/app/auth/actions";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getCurrentLocale, getI18n } from "@/src/i18n";
 
 export async function Header() {
+  const locale = await getCurrentLocale();
+  const messages = await getI18n(locale);
+  const headerMessages = messages.header;
   const session = await getSessionAction();
   let fullName: string | null = null;
 
@@ -30,28 +36,45 @@ export async function Header() {
           <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-gradient-to-br from-accent to-accent-secondary text-white shadow-soft">
             <Image
               src="/branding-logo.svg"
-              alt="Logo Mon partenaire"
+              alt={headerMessages.logoAlt}
               width={36}
               height={36}
               className="h-8 w-8"
               priority
             />
           </span>
-          <span className="text-text-primary">Mon partenaire</span>
+          <span className="text-text-primary">{headerMessages.brandName}</span>
         </Link>
 
-        <nav className="hidden items-center justify-center gap-6 text-sm text-text-secondary md:flex">
-          <Link className="transition-colors hover:text-text-primary" href="/projects">
-            Explorer les projets
-          </Link>
-          <Link className="transition-colors hover:text-text-primary" href="/documents">
-            Documents
-          </Link>
-        </nav>
+        <HeaderNav
+          homeLabel={headerMessages.navHome}
+          projectsLabel={headerMessages.navProjects}
+          documentsLabel={headerMessages.navDocuments}
+        />
 
         <div className="flex items-center justify-end gap-3">
+          <LocaleSwitcher
+            locale={locale}
+            label={messages.locale.label}
+            frLabel={messages.locale.fr}
+            enLabel={messages.locale.en}
+            cgLabel={messages.locale.cg}
+          />
           <ThemeToggle />
-          <HeaderClient initialSession={session} initialFullName={fullName} />
+          <HeaderClient
+            initialSession={session}
+            initialFullName={fullName}
+            labels={{
+              accountFallback: headerMessages.accountFallback,
+              connectedAccount: headerMessages.connectedAccount,
+              dashboard: headerMessages.menuDashboard,
+              profile: headerMessages.menuProfile,
+              support: headerMessages.menuSupport,
+              logout: headerMessages.logout,
+              login: headerMessages.login,
+              signup: headerMessages.signup,
+            }}
+          />
         </div>
       </Container>
     </header>
