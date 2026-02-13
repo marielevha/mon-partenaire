@@ -79,7 +79,8 @@ export default async function ProjectsPage({ searchParams }: { searchParams?: { 
                     totalCapital={p.totalCapital}
                     remainingNeeds={p.remainingNeeds}
                     needTypes={p.needTypes}
-                    image={`/landing/project-${(i % 3) + 1}.svg`}
+                    image={p.coverImageUrl ?? `/landing/project-${(i % 3) + 1}.svg`}
+                    progress={p.equityAllocationPercent}
                   />
                 ))}
               </div>

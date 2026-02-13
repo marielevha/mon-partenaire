@@ -6,8 +6,14 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { ProjectFormState } from "@/app/dashboard/actions";
-import { createProjectAction } from "@/app/dashboard/actions";
+import { createProjectAction, updateProjectAction } from "@/app/dashboard/actions";
+import {
+  NeedsForm,
+  type EditableProjectNeed,
+} from "@/components/dashboard/NeedsForm";
+import { FieldHelp } from "@/components/ui/field-help";
 import { cn } from "@/components/ui/utils";
+import { normalizeProjectNeedType } from "@/src/lib/project-needs";
 
 const initialState: ProjectFormState = null;
 
@@ -27,19 +33,14 @@ export type ProjectFormValues = {
   legalForm: string;
   totalCapital: string;
   ownerContribution: string;
+  ownerEquityPercent: string;
   equityNote: string;
   companyCreated: boolean;
   country: string;
 };
 
-type ProjectFormAction = (
-  prevState: ProjectFormState,
-  formData: FormData
-) => Promise<ProjectFormState>;
-
 type CreateProjectFormProps = {
   mode?: "create" | "edit";
-  action?: ProjectFormAction;
   initialValues?: Partial<ProjectFormValues>;
   projectId?: string;
   existingImages?: Array<{
@@ -54,7 +55,23 @@ type CreateProjectFormProps = {
     mimeType?: string | null;
     sizeBytes?: number | null;
   }>;
+  existingNeeds?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    description: string | null;
+    amount: number | null;
+    requiredCount: number | null;
+    equityPercent: number | null;
+    skillTags: string[];
+    isFilled: boolean;
+  }>;
 };
+
+const EMPTY_EXISTING_IMAGES: NonNullable<CreateProjectFormProps["existingImages"]> = [];
+const EMPTY_EXISTING_DOCUMENTS: NonNullable<CreateProjectFormProps["existingDocuments"]> =
+  [];
+const EMPTY_EXISTING_NEEDS: NonNullable<CreateProjectFormProps["existingNeeds"]> = [];
 
 const DEFAULT_FORM_VALUES: ProjectFormValues = {
   title: "Atelier agroalimentaire de proximité",
@@ -69,9 +86,10 @@ const DEFAULT_FORM_VALUES: ProjectFormValues = {
   legalForm: "SARL",
   totalCapital: "12000000",
   ownerContribution: "3000000",
+  ownerEquityPercent: "40",
   equityNote:
     "Ouvert à un partenaire opérationnel et financier avec gouvernance progressive.",
-  companyCreated: true,
+  companyCreated: false,
   country: "CG",
 };
 
@@ -136,12 +154,34 @@ function buildFormValues(initialValues?: Partial<ProjectFormValues>): ProjectFor
     totalCapital: initialValues?.totalCapital ?? DEFAULT_FORM_VALUES.totalCapital,
     ownerContribution:
       initialValues?.ownerContribution ?? DEFAULT_FORM_VALUES.ownerContribution,
+    ownerEquityPercent:
+      initialValues?.ownerEquityPercent ?? DEFAULT_FORM_VALUES.ownerEquityPercent,
     equityNote: initialValues?.equityNote ?? DEFAULT_FORM_VALUES.equityNote,
     country: initialValues?.country ?? DEFAULT_FORM_VALUES.country,
     companyCreated:
       typeof initialValues?.companyCreated === "boolean"
         ? initialValues.companyCreated
         : DEFAULT_FORM_VALUES.companyCreated,
+  };
+}
+
+function mapExistingNeedToEditableNeed(
+  need: NonNullable<CreateProjectFormProps["existingNeeds"]>[number]
+): EditableProjectNeed {
+  const normalizedType = normalizeProjectNeedType(need.type) ?? "FINANCIAL";
+
+  return {
+    clientId: need.id,
+    type: normalizedType,
+    title: need.title ?? "",
+    description: need.description ?? "",
+    amount: typeof need.amount === "number" ? String(need.amount) : "",
+    requiredCount:
+      typeof need.requiredCount === "number" ? String(need.requiredCount) : "",
+    equityPercent:
+      typeof need.equityPercent === "number" ? String(need.equityPercent) : "",
+    skillTags: need.skillTags.join(", "),
+    isFilled: need.isFilled,
   };
 }
 
@@ -191,18 +231,30 @@ function SubmitButton({ mode }: { mode: "create" | "edit" }) {
 
 export function CreateProjectForm({
   mode = "create",
-  action,
   initialValues,
   projectId,
-  existingImages = [],
-  existingDocuments = [],
+  existingImages,
+  existingDocuments,
+  existingNeeds,
 }: CreateProjectFormProps) {
-  const formActionFn = action ?? createProjectAction;
-  const [state, formAction] = useActionState(formActionFn, initialState);
+  const [createState, createFormAction] = useActionState(
+    createProjectAction,
+    initialState
+  );
+  const [editState, editFormAction] = useActionState(updateProjectAction, initialState);
+  const state = mode === "edit" ? editState : createState;
+  const formAction = mode === "edit" ? editFormAction : createFormAction;
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
   const isCreateMode = mode === "create";
+  const existingImageItems = existingImages ?? EMPTY_EXISTING_IMAGES;
+  const existingDocumentItems = existingDocuments ?? EMPTY_EXISTING_DOCUMENTS;
+  const existingNeedItems = existingNeeds ?? EMPTY_EXISTING_NEEDS;
   const values = useMemo(() => buildFormValues(initialValues), [initialValues]);
+  const initialNeeds = useMemo(
+    () => existingNeedItems.map(mapExistingNeedToEditableNeed),
+    [existingNeedItems]
+  );
   const resultProjectId = state?.ok ? state.projectId : projectId;
   const [selectedImagePreviews, setSelectedImagePreviews] = useState<
     SelectedImagePreview[]
@@ -214,22 +266,46 @@ export function CreateProjectForm({
   const [selectedRemovalDocumentIds, setSelectedRemovalDocumentIds] = useState<string[]>(
     []
   );
+  const [editableNeeds, setEditableNeeds] = useState<EditableProjectNeed[]>(
+    initialNeeds
+  );
+
+  const serializedNeedsPayload = useMemo(
+    () =>
+      JSON.stringify(
+        editableNeeds.map((need) => ({
+          type: need.type,
+          title: need.title,
+          description: need.description,
+          amount: need.amount,
+          requiredCount: need.requiredCount,
+          equityPercent: need.equityPercent,
+          skillTags: need.skillTags,
+          isFilled: need.isFilled,
+        }))
+      ),
+    [editableNeeds]
+  );
 
   useEffect(() => {
-    const existingImageIds = new Set(existingImages.map((image) => image.id));
+    const existingImageIds = new Set(existingImageItems.map((image) => image.id));
     setSelectedRemovalImageIds((prevIds) =>
       keepOnlyExistingIds(prevIds, existingImageIds)
     );
-  }, [existingImages]);
+  }, [existingImageItems]);
 
   useEffect(() => {
     const existingDocumentIds = new Set(
-      existingDocuments.map((document) => document.id)
+      existingDocumentItems.map((document) => document.id)
     );
     setSelectedRemovalDocumentIds((prevIds) =>
       keepOnlyExistingIds(prevIds, existingDocumentIds)
     );
-  }, [existingDocuments]);
+  }, [existingDocumentItems]);
+
+  useEffect(() => {
+    setEditableNeeds(initialNeeds);
+  }, [initialNeeds]);
 
   useEffect(() => {
     return () => {
@@ -273,15 +349,15 @@ export function CreateProjectForm({
   };
 
   const allExistingImagesSelected =
-    existingImages.length > 0 &&
-    selectedRemovalImageIds.length === existingImages.length;
+    existingImageItems.length > 0 &&
+    selectedRemovalImageIds.length === existingImageItems.length;
 
   const handleToggleAllExistingImages = () => {
     if (allExistingImagesSelected) {
       setSelectedRemovalImageIds([]);
       return;
     }
-    setSelectedRemovalImageIds(existingImages.map((image) => image.id));
+    setSelectedRemovalImageIds(existingImageItems.map((image) => image.id));
   };
 
   const handleToggleExistingImage = (imageId: string) => {
@@ -293,15 +369,15 @@ export function CreateProjectForm({
   };
 
   const allExistingDocumentsSelected =
-    existingDocuments.length > 0 &&
-    selectedRemovalDocumentIds.length === existingDocuments.length;
+    existingDocumentItems.length > 0 &&
+    selectedRemovalDocumentIds.length === existingDocumentItems.length;
 
   const handleToggleAllExistingDocuments = () => {
     if (allExistingDocumentsSelected) {
       setSelectedRemovalDocumentIds([]);
       return;
     }
-    setSelectedRemovalDocumentIds(existingDocuments.map((document) => document.id));
+    setSelectedRemovalDocumentIds(existingDocumentItems.map((document) => document.id));
   };
 
   const handleToggleExistingDocument = (documentId: string) => {
@@ -326,6 +402,9 @@ export function CreateProjectForm({
       setSelectedDocumentPreviews([]);
       setSelectedRemovalImageIds([]);
       setSelectedRemovalDocumentIds([]);
+      if (isCreateMode) {
+        setEditableNeeds([]);
+      }
       router.refresh();
     }
   }, [isCreateMode, router, state]);
@@ -344,10 +423,15 @@ export function CreateProjectForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Titre</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Titre
+            <FieldHelp text="Nom court et explicite du projet (4 à 120 caractères)." />
+          </span>
           <input
             name="title"
             defaultValue={values.title}
+            minLength={4}
+            maxLength={120}
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.title && "border-rose-400")}
             placeholder="Ex: Usine de transformation locale"
             required
@@ -358,7 +442,10 @@ export function CreateProjectForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Ville</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Ville
+            <FieldHelp text="Ville principale d'implantation ou d'activité du projet." />
+          </span>
           <select
             name="city"
             defaultValue={values.city}
@@ -381,10 +468,15 @@ export function CreateProjectForm({
       </div>
 
       <label className="space-y-1 text-sm">
-        <span className="dashboard-faint">Résumé</span>
+        <span className="dashboard-faint inline-flex items-center gap-1.5">
+          Résumé
+          <FieldHelp text="Synthèse du projet en 1 à 3 phrases (20 à 220 caractères)." />
+        </span>
         <textarea
           name="summary"
           defaultValue={values.summary}
+          minLength={20}
+          maxLength={220}
           className={cn(inputStyles, "min-h-[84px]", state?.ok === false && state.fieldErrors?.summary && "border-rose-400")}
           placeholder="Décrivez le positionnement du projet en quelques lignes."
           required
@@ -395,10 +487,15 @@ export function CreateProjectForm({
       </label>
 
       <label className="space-y-1 text-sm">
-        <span className="dashboard-faint">Description complète</span>
+        <span className="dashboard-faint inline-flex items-center gap-1.5">
+          Description complète
+          <FieldHelp text="Décrivez le contexte, le marché, l'offre, les objectifs et le plan d'exécution (80 à 6000 caractères)." />
+        </span>
         <textarea
           name="description"
           defaultValue={values.description}
+          minLength={80}
+          maxLength={6000}
           className={cn(inputStyles, "min-h-[150px]", state?.ok === false && state.fieldErrors?.description && "border-rose-400")}
           placeholder="Objectif, marché, modèle économique, équipe, jalons..."
           required
@@ -410,7 +507,10 @@ export function CreateProjectForm({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Catégorie</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Catégorie
+            <FieldHelp text="Secteur principal du projet (agri, tech, santé, etc.)." />
+          </span>
           <select
             name="category"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.category && "border-rose-400")}
@@ -429,7 +529,10 @@ export function CreateProjectForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Modèle</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Modèle
+            <FieldHelp text="Type de contrepartie proposé aux partenaires: sans equity, equity, ou partage de revenus." />
+          </span>
           <select
             name="equityModel"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.equityModel && "border-rose-400")}
@@ -445,7 +548,10 @@ export function CreateProjectForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Visibilité</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Visibilité
+            <FieldHelp text="Public: visible sur la plateforme. Privé: accessible uniquement dans l'espace propriétaire." />
+          </span>
           <select
             name="visibility"
             className={cn(inputStyles, state?.ok === false && state.fieldErrors?.visibility && "border-rose-400")}
@@ -460,7 +566,10 @@ export function CreateProjectForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Forme légale</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Forme légale
+            <FieldHelp text="Statut juridique visé ou actuel de l'entreprise (optionnel)." />
+          </span>
           <select name="legalForm" className={inputStyles} defaultValue={values.legalForm}>
             <option value="">Non définie</option>
             <option value="SARL">SARL</option>
@@ -471,9 +580,12 @@ export function CreateProjectForm({
         </label>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Capital total recherché (FCFA)</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Capital total recherché (FCFA)
+            <FieldHelp text="Montant total nécessaire pour financer le projet." />
+          </span>
           <input
             name="totalCapital"
             type="number"
@@ -489,7 +601,10 @@ export function CreateProjectForm({
         </label>
 
         <label className="space-y-1 text-sm">
-          <span className="dashboard-faint">Apport du porteur (FCFA)</span>
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Apport du porteur (FCFA)
+            <FieldHelp text="Montant que le porteur investit personnellement dans le projet." />
+          </span>
           <input
             name="ownerContribution"
             type="number"
@@ -503,10 +618,40 @@ export function CreateProjectForm({
             <p className="text-xs text-rose-500 dark:text-rose-300">{state.fieldErrors.ownerContribution}</p>
           ) : null}
         </label>
+
+        <label className="space-y-1 text-sm">
+          <span className="dashboard-faint inline-flex items-center gap-1.5">
+            Parts du porteur (%)
+            <FieldHelp text="Pourcentage de parts sociales réservé au porteur. La somme porteur + besoins ne doit pas dépasser 100%." />
+          </span>
+          <input
+            name="ownerEquityPercent"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            defaultValue={values.ownerEquityPercent}
+            className={cn(
+              inputStyles,
+              state?.ok === false &&
+                state.fieldErrors?.ownerEquityPercent &&
+                "border-rose-400"
+            )}
+            placeholder="40"
+          />
+          {state?.ok === false && state.fieldErrors?.ownerEquityPercent ? (
+            <p className="text-xs text-rose-500 dark:text-rose-300">
+              {state.fieldErrors.ownerEquityPercent}
+            </p>
+          ) : null}
+        </label>
       </div>
 
       <label className="space-y-1 text-sm">
-        <span className="dashboard-faint">Note sur le partenariat (optionnel)</span>
+        <span className="dashboard-faint inline-flex items-center gap-1.5">
+          Note sur le partenariat (optionnel)
+          <FieldHelp text="Informations complémentaires sur les conditions de collaboration, la gouvernance ou les attentes partenaires." />
+        </span>
         <textarea
           name="equityNote"
           defaultValue={values.equityNote}
@@ -514,6 +659,12 @@ export function CreateProjectForm({
           placeholder="Ex: Ouvert à une gouvernance partagée et à un pacte d'associés progressif."
         />
       </label>
+
+      <NeedsForm
+        value={editableNeeds}
+        onChange={setEditableNeeds}
+        error={state?.ok === false ? state.fieldErrors?.projectNeeds : undefined}
+      />
 
       <div className="dashboard-panel-soft rounded-xl p-4">
         <h3 className="text-sm font-semibold">Médias du projet</h3>
@@ -535,7 +686,7 @@ export function CreateProjectForm({
           <div className="mt-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="dashboard-faint text-xs">Images existantes</p>
-              {existingImages.length > 0 ? (
+              {existingImageItems.length > 0 ? (
                 <button
                   type="button"
                   onClick={handleToggleAllExistingImages}
@@ -545,13 +696,13 @@ export function CreateProjectForm({
                 </button>
               ) : null}
             </div>
-            {existingImages.length === 0 ? (
+            {existingImageItems.length === 0 ? (
               <p className="dashboard-faint rounded-lg border border-dashed px-3 py-2 text-xs">
                 Aucune image enregistrée pour ce projet.
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {existingImages.map((image, index) => (
+                {existingImageItems.map((image, index) => (
                   <label
                     key={image.id}
                     className="dashboard-panel rounded-lg border p-2 text-xs"
@@ -598,7 +749,7 @@ export function CreateProjectForm({
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="dashboard-faint text-xs">Documents existants</p>
-              {existingDocuments.length > 0 ? (
+              {existingDocumentItems.length > 0 ? (
                 <button
                   type="button"
                   onClick={handleToggleAllExistingDocuments}
@@ -609,13 +760,13 @@ export function CreateProjectForm({
               ) : null}
             </div>
 
-            {existingDocuments.length === 0 ? (
+            {existingDocumentItems.length === 0 ? (
               <p className="dashboard-faint rounded-lg border border-dashed px-3 py-2 text-xs">
                 Aucun document enregistré pour ce projet.
               </p>
             ) : (
               <div className="space-y-2">
-                {existingDocuments.map((document) => (
+                {existingDocumentItems.map((document) => (
                   <label
                     key={document.id}
                     className="dashboard-panel flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
@@ -657,7 +808,10 @@ export function CreateProjectForm({
 
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className="dashboard-faint">Images (JPG, PNG, WEBP)</span>
+            <span className="dashboard-faint inline-flex items-center gap-1.5">
+              Images (JPG, PNG, WEBP)
+              <FieldHelp text="Ajoutez des visuels du projet. Maximum 10 images, 5 MB par fichier." />
+            </span>
             <input
               type="file"
               name="projectImages"
@@ -674,7 +828,10 @@ export function CreateProjectForm({
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="dashboard-faint">Documents</span>
+            <span className="dashboard-faint inline-flex items-center gap-1.5">
+              Documents
+              <FieldHelp text="Ajoutez des documents utiles: business plan, pitch deck, études, tableaux financiers, etc." />
+            </span>
             <input
               type="file"
               name="projectDocuments"
@@ -744,10 +901,18 @@ export function CreateProjectForm({
             defaultChecked={values.companyCreated}
             className="h-4 w-4 rounded border-slate-400 bg-transparent text-accent focus:ring-accent/45"
           />
-          Entreprise déjà créée
+          <span className="inline-flex items-center gap-1.5">
+            Entreprise déjà créée
+            <FieldHelp text="Cochez si l'entreprise est déjà constituée juridiquement." />
+          </span>
         </label>
 
         <input type="hidden" name="country" value={values.country || "CG"} />
+        <input
+          type="hidden"
+          name="projectNeedsPayload"
+          value={serializedNeedsPayload}
+        />
         {mode === "edit" ? (
           <input type="hidden" name="projectId" value={projectId} />
         ) : null}

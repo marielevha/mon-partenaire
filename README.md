@@ -131,6 +131,46 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - entrée `Templates documents`,
   - entrée dédiée `Ajouter un document`.
 
+## Mise à jour récente (Projets & édition)
+
+- Page publique `/projects` branchée sur les images réelles des projets:
+  - récupération de la couverture depuis `ProjectImage` (priorité cover/sort order),
+  - fallback visuel conservé si aucune image n'est disponible.
+- Carte projet modernisée (`ProjectCard`):
+  - rendu via `next/image`,
+  - gestion d'erreur image avec fallback automatique.
+- Section exemples de la landing page:
+  - remplacement des 3 exemples statiques par 3 projets issus de la base,
+  - logique de sélection: projets publiés/publics non clôturés en priorité, puis fallback sur les plus récents.
+- Fiabilisation de la mise à jour projet (dashboard):
+  - correction du câblage des Server Actions en mode édition,
+  - gestion d'erreur robuste pour éviter les réponses serveur inattendues.
+- Upload formulaire projet:
+  - augmentation de `serverActions.bodySizeLimit` à `50mb`,
+  - validation HTML alignée avec la validation serveur (`title`, `summary`, `description`) pour éviter la perte de fichiers après un aller-retour invalide.
+
+## Mise à jour récente (Besoins & Parts)
+
+- Structuration complète des besoins projet (`FINANCIAL`, `SKILL`, `MATERIAL`, `PARTNERSHIP`) avec UI dédiée:
+  - section `Besoins` dans le formulaire projet,
+  - ajout/suppression dynamique avant sauvegarde,
+  - affichage groupé via composants `NeedsSection` et `NeedCard`.
+- Validation serveur renforcée sur la création/édition:
+  - règles métier par type de besoin (montant, quantité requise, description, tags),
+  - contrôle de cohérence des parts: `parts porteur + parts besoins <= 100`.
+- Ajout du pourcentage de parts du porteur (`ownerEquityPercent`) et migration SQL dédiée:
+  - script `supabase/project_owner_equity_upgrade.sql`.
+- Règle de clôture projet:
+  - passage au statut `ARCHIVED` autorisé uniquement si `parts porteur + parts besoins == 100`.
+- Dashboard et page détail enrichis avec les nouveaux indicateurs:
+  - allocation des parts affichée,
+  - statut `Archivé` désactivé tant que la répartition n'est pas complète,
+  - sections `Plan de financement` et `Capital recherché` recalculées (capital mobilisé, restant, couverture, besoins financiers ouverts/comblés).
+- UX formulaire améliorée:
+  - correction boucle React (`Maximum update depth exceeded`) sur `/dashboard/projects/new`,
+  - case `Entreprise déjà créée` décochée par défaut,
+  - ajout d'aides contextuelles `?` sur les champs du formulaire projet et besoins.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

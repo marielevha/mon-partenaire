@@ -100,6 +100,7 @@ model Project {
   companyCreated   Boolean         @default(false)
   totalCapital     Int?
   ownerContribution Int?
+  ownerEquityPercent Int?
   equityModel      EquityModel
   equityNote       String?
   visibility       ProjectVisibility @default(PUBLIC)

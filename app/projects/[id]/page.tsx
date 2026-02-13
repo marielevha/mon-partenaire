@@ -10,9 +10,11 @@ import { Card } from "@/components/ui/card";
 import { ProjectBadge } from "@/components/projects/ProjectBadge";
 import ProjectImageGallery from "@/components/projects/ProjectImageGallery";
 import { ProjectContactActions } from "@/components/projects/ProjectContactActions";
+import { NeedsSection } from "@/components/projects/NeedsSection";
 import {
   buildProjectDocumentPublicUrl,
   buildProjectImagePublicUrl,
+  getProjectNeedsByProjectId,
 } from "@/src/lib/projects";
 
 type Props = {
@@ -56,7 +58,6 @@ const getProjectById = cache(async (projectId: string) => {
   return prisma.project.findUnique({
     where: { id: projectId },
     include: {
-      needs: true,
       images: {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       },
@@ -88,6 +89,20 @@ const getProjectDocumentsById = cache(async (projectId: string) => {
     }
     throw error;
   });
+});
+
+const getProjectOwnerEquityPercentById = cache(async (projectId: string) => {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ ownerEquityPercent: number | null }>>`
+      SELECT "ownerEquityPercent"
+      FROM "Project"
+      WHERE "id" = ${projectId}
+      LIMIT 1
+    `;
+    return rows[0]?.ownerEquityPercent ?? null;
+  } catch {
+    return null;
+  }
 });
 
 function formatMoney(amount?: number | null) {
@@ -244,6 +259,8 @@ export default async function ProjectDetailPage({ params }: Props) {
   }
 
   const projectDocuments = await getProjectDocumentsById(project.id);
+  const projectNeeds = await getProjectNeedsByProjectId(project.id);
+  const ownerEquityPercentRaw = await getProjectOwnerEquityPercentById(project.id);
 
   const uploadedImages = project.images
     .map((image) => buildProjectImagePublicUrl(image.storagePath))
@@ -273,25 +290,50 @@ export default async function ProjectDetailPage({ params }: Props) {
       } => Boolean(document.url)
     );
 
-  const totalNeeds = project.needs.length;
-  const openNeeds = project.needs.filter((need) => !need.isFilled);
+  const totalNeeds = projectNeeds.length;
+  const openNeeds = projectNeeds.filter((need) => !need.isFilled);
   const filledNeeds = totalNeeds - openNeeds.length;
   const progressPercent =
     totalNeeds > 0 ? Math.round((filledNeeds / totalNeeds) * 100) : 0;
 
-  const financialNeeds = project.needs.filter((need) => need.type === "FINANCIAL");
-  const skillNeeds = project.needs.filter((need) => need.type === "SKILL");
+  const financialNeeds = projectNeeds.filter((need) => need.type === "FINANCIAL");
+  const skillNeeds = projectNeeds.filter((need) => need.type === "SKILL");
+  const materialNeeds = projectNeeds.filter((need) => need.type === "MATERIAL");
+  const partnershipNeeds = projectNeeds.filter(
+    (need) => need.type === "PARTNERSHIP"
+  );
 
-  const totalFinancialNeed = openNeeds
-    .filter((need) => need.type === "FINANCIAL")
-    .reduce((sum, need) => sum + (need.amount ?? 0), 0);
-
+  const filledFinancialNeeds = financialNeeds.filter((need) => need.isFilled);
+  const openFinancialNeeds = financialNeeds.filter((need) => !need.isFilled);
+  const filledFinancialAmount = filledFinancialNeeds.reduce(
+    (sum, need) => sum + (need.amount ?? 0),
+    0
+  );
+  const openFinancialAmount = openFinancialNeeds.reduce(
+    (sum, need) => sum + (need.amount ?? 0),
+    0
+  );
   const totalCapital = project.totalCapital ?? 0;
   const ownerContribution = project.ownerContribution ?? 0;
-  const remainingCapital = Math.max(totalCapital - ownerContribution, 0);
+  const ownerEquityPercent = ownerEquityPercentRaw ?? 0;
+  const mobilizedCapital = ownerContribution + filledFinancialAmount;
+  const needsEquityPercent = projectNeeds.reduce(
+    (sum, need) => sum + (need.equityPercent ?? 0),
+    0
+  );
+  const totalAllocatedShare = ownerEquityPercent + needsEquityPercent;
+  const missingAllocatedShare = Math.max(0, 100 - totalAllocatedShare);
+  const exceededAllocatedShare = Math.max(0, totalAllocatedShare - 100);
+  const remainingCapital = Math.max(totalCapital - mobilizedCapital, 0);
+  const fundingCoverage =
+    totalCapital > 0 ? Math.min(100, Math.round((mobilizedCapital / totalCapital) * 100)) : 0;
   const ownerCoverage =
     totalCapital > 0
       ? Math.min(100, Math.round((ownerContribution / totalCapital) * 100))
+      : 0;
+  const financialNeedsCompletion =
+    financialNeeds.length > 0
+      ? Math.round((filledFinancialNeeds.length / financialNeeds.length) * 100)
       : 0;
 
   const statusTone =
@@ -501,14 +543,14 @@ export default async function ProjectDetailPage({ params }: Props) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold">Plan de financement</h2>
                   <span className="text-xs text-text-secondary">
-                    Répartition actuelle
+                    Situation actuelle consolidée
                   </span>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-lg border border-border/50 bg-background p-4">
                     <p className="text-xs uppercase tracking-wide text-text-secondary">
-                      Capital total
+                      Capital cible
                     </p>
                     <p className="mt-2 text-base font-semibold">
                       {formatMoney(project.totalCapital)}
@@ -516,10 +558,14 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </div>
                   <div className="rounded-lg border border-border/50 bg-background p-4">
                     <p className="text-xs uppercase tracking-wide text-text-secondary">
-                      Apport porteur
+                      Capital mobilisé
                     </p>
                     <p className="mt-2 text-base font-semibold">
-                      {formatMoney(project.ownerContribution)}
+                      {formatMoney(mobilizedCapital)}
+                    </p>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Porteur {formatMoney(ownerContribution)} + besoins comblés{" "}
+                      {formatMoney(filledFinancialAmount)}
                     </p>
                   </div>
                   <div className="rounded-lg border border-border/50 bg-background p-4">
@@ -535,25 +581,52 @@ export default async function ProjectDetailPage({ params }: Props) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-text-secondary">
-                      Couverture par le porteur
+                      Couverture globale du capital
                     </span>
-                    <span className="font-semibold">{ownerCoverage}%</span>
+                    <span className="font-semibold">{fundingCoverage}%</span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-border/40">
                     <div
                       className="h-3 rounded-full bg-accent transition-all duration-300"
-                      style={{ width: `${ownerCoverage}%` }}
+                      style={{ width: `${fundingCoverage}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-border/50 bg-surface-accent/60 p-4 text-sm text-text-secondary">
                   <p>
+                    Besoins financiers comblés:{" "}
+                    <span className="font-semibold text-text-primary">
+                      {filledFinancialNeeds.length}/{financialNeeds.length}
+                    </span>{" "}
+                    ({formatMoney(filledFinancialAmount)})
+                  </p>
+                  <p className="mt-2">
                     Besoins financiers ouverts estimés:{" "}
                     <span className="font-semibold text-text-primary">
-                      {formatMoney(totalFinancialNeed)}
+                      {formatMoney(openFinancialAmount)}
                     </span>
                   </p>
+                  <p className="mt-2">
+                    Répartition parts:{" "}
+                    <span className="font-semibold text-text-primary">
+                      {totalAllocatedShare}%
+                    </span>{" "}
+                    (porteur {ownerEquityPercent}% + besoins {needsEquityPercent}%)
+                  </p>
+                  {missingAllocatedShare > 0 ? (
+                    <p className="mt-2">
+                      Parts restantes à allouer:{" "}
+                      <span className="font-semibold text-text-primary">
+                        {missingAllocatedShare}%
+                      </span>
+                    </p>
+                  ) : null}
+                  {exceededAllocatedShare > 0 ? (
+                    <p className="mt-2 text-red-500 dark:text-red-300">
+                      Allocation dépassée de {exceededAllocatedShare}%.
+                    </p>
+                  ) : null}
                 </div>
               </Card>
 
@@ -580,74 +653,7 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {project.needs.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-secondary">
-                      Aucun besoin n&apos;est encore publié pour ce projet.
-                    </div>
-                  ) : (
-                    [...project.needs]
-                      .sort((a, b) => Number(a.isFilled) - Number(b.isFilled))
-                      .map((need) => (
-                        <div
-                          key={need.id}
-                          className="rounded-lg border border-border/50 bg-background/60 p-4 transition-colors hover:bg-surface"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-text-primary">
-                                  {need.title}
-                                </p>
-                                <span className="inline-flex items-center rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                                  {need.type === "FINANCIAL" ? "Financier" : "Compétence"}
-                                </span>
-                                {need.isFilled ? (
-                                  <span className="inline-flex items-center rounded-full bg-emerald-600/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                                    Comblé
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                    Ouvert
-                                  </span>
-                                )}
-                              </div>
-
-                              {need.description ? (
-                                <p className="text-sm text-text-secondary">
-                                  {need.description}
-                                </p>
-                              ) : null}
-
-                              {need.skillTags.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {need.skillTags.map((tag) => (
-                                    <span
-                                      key={`${need.id}-${tag}`}
-                                      className="inline-flex items-center rounded-full bg-surface-accent px-2.5 py-1 text-xs text-text-secondary"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="text-sm font-semibold text-text-primary">
-                                {need.amount ? formatMoney(need.amount) : need.type}
-                              </p>
-                              {need.equityShare ? (
-                                <p className="mt-1 text-xs text-text-secondary">
-                                  Jusqu&apos;à {need.equityShare}%
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </div>
+                <NeedsSection needs={projectNeeds} formatMoney={formatMoney} />
               </Card>
             </div>
 
@@ -667,7 +673,26 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </p>
                 </div>
 
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-text-secondary">
+                    <span>Couverture actuelle</span>
+                    <span className="font-semibold text-text-primary">{fundingCoverage}%</span>
+                  </div>
+                  <div className="h-2.5 w-full rounded-full bg-border/40">
+                    <div
+                      className="h-2.5 rounded-full bg-accent transition-all duration-300"
+                      style={{ width: `${fundingCoverage}%` }}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Capital mobilisé</span>
+                    <span className="font-semibold text-text-primary">
+                      {formatMoney(mobilizedCapital)}
+                    </span>
+                  </div>
                   <div className="flex items-center justify-between">
                     <span className="text-text-secondary">Reste à mobiliser</span>
                     <span className="font-semibold text-text-primary">
@@ -675,15 +700,45 @@ export default async function ProjectDetailPage({ params }: Props) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-text-secondary">Besoins financiers</span>
+                    <span className="text-text-secondary">Besoins financiers (total)</span>
                     <span className="font-semibold text-text-primary">
                       {financialNeeds.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Besoins financiers comblés</span>
+                    <span className="font-semibold text-text-primary">
+                      {filledFinancialNeeds.length} ({formatMoney(filledFinancialAmount)})
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Besoins financiers ouverts</span>
+                    <span className="font-semibold text-text-primary">
+                      {openFinancialNeeds.length} ({formatMoney(openFinancialAmount)})
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Avancement financier</span>
+                    <span className="font-semibold text-text-primary">
+                      {financialNeedsCompletion}%
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-text-secondary">Besoins compétences</span>
                     <span className="font-semibold text-text-primary">
                       {skillNeeds.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Besoins matériels</span>
+                    <span className="font-semibold text-text-primary">
+                      {materialNeeds.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Partenariats</span>
+                    <span className="font-semibold text-text-primary">
+                      {partnershipNeeds.length}
                     </span>
                   </div>
                 </div>
@@ -728,6 +783,10 @@ export default async function ProjectDetailPage({ params }: Props) {
                     <span className="font-medium">
                       {equityLabels[project.equityModel] ?? project.equityModel}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-secondary">Parts porteur</span>
+                    <span className="font-medium">{ownerEquityPercent}%</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-text-secondary">Statut</span>

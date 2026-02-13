@@ -33,7 +33,7 @@ addRemotePatternFromUrl(process.env.S3_ENDPOINT);
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb",
+      bodySizeLimit: "50mb",
     },
   },
   images: {
