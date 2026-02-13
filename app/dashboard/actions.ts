@@ -6,6 +6,12 @@ import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import prisma from "@/src/lib/prisma";
 import { createProjectDraft } from "@/src/lib/projects";
 import {
+  PROJECT_NEED_TYPE_LABELS,
+  type ProjectNeedType,
+  normalizeProjectNeedType,
+  splitSkillTags,
+} from "@/src/lib/project-needs";
+import {
   deleteProjectDocumentObjects,
   deleteProjectImageObjects,
   uploadProjectDocumentObject,
@@ -26,10 +32,12 @@ type ProjectFormField =
   | "city"
   | "totalCapital"
   | "ownerContribution"
+  | "ownerEquityPercent"
   | "equityModel"
   | "visibility"
   | "projectImages"
-  | "projectDocuments";
+  | "projectDocuments"
+  | "projectNeeds";
 
 type ProjectFormError = {
   ok: false;
@@ -129,11 +137,24 @@ type ParsedProjectFormData = {
   companyCreated: boolean;
   totalCapital: number | null;
   ownerContribution: number | null;
+  ownerEquityPercent: number | null;
   equityModel: EquityModelValue;
   equityNote: string | null;
   visibility: VisibilityValue;
+  needs: ParsedProjectNeedInput[];
   imageFiles: File[];
   documentFiles: File[];
+};
+
+type ParsedProjectNeedInput = {
+  type: ProjectNeedType;
+  title: string;
+  description: string | null;
+  amount: number | null;
+  requiredCount: number | null;
+  equityPercent: number | null;
+  skillTags: string[];
+  isFilled: boolean;
 };
 
 type ProjectDocumentInsertData = {
@@ -160,6 +181,189 @@ function parseOptionalNumber(value: string) {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function parseUnknownOptionalInteger(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return Number.NaN;
+    }
+    return Math.trunc(value);
+  }
+
+  if (typeof value !== "string") {
+    return Number.NaN;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function parseAndValidateProjectNeedsPayload(payload: string): {
+  needs?: ParsedProjectNeedInput[];
+  error?: string;
+} {
+  if (!payload) {
+    return { needs: [] };
+  }
+
+  let rawNeeds: unknown;
+
+  try {
+    rawNeeds = JSON.parse(payload);
+  } catch {
+    return {
+      error:
+        "Format des besoins invalide. Rechargez la page et réessayez l'enregistrement.",
+    };
+  }
+
+  if (!Array.isArray(rawNeeds)) {
+    return {
+      error:
+        "Format des besoins invalide. Rechargez la page et réessayez l'enregistrement.",
+    };
+  }
+
+  if (rawNeeds.length > 40) {
+    return {
+      error: "Vous pouvez enregistrer au maximum 40 besoins par projet.",
+    };
+  }
+
+  const parsedNeeds: ParsedProjectNeedInput[] = [];
+
+  for (const [index, rawNeed] of rawNeeds.entries()) {
+    if (!rawNeed || typeof rawNeed !== "object") {
+      return {
+        error: `Le besoin #${index + 1} est invalide.`,
+      };
+    }
+
+    const row = rawNeed as Record<string, unknown>;
+    const type = normalizeProjectNeedType(String(row.type ?? ""));
+    if (!type) {
+      return {
+        error: `Le type du besoin #${index + 1} est invalide.`,
+      };
+    }
+
+    const titleInput = typeof row.title === "string" ? row.title.trim() : "";
+    const title = titleInput || `${PROJECT_NEED_TYPE_LABELS[type]} #${index + 1}`;
+    if (title.length > 140) {
+      return {
+        error: `Le titre du besoin #${index + 1} est trop long (140 caractères max).`,
+      };
+    }
+
+    const description =
+      typeof row.description === "string" && row.description.trim().length > 0
+        ? row.description.trim()
+        : null;
+    const amount = parseUnknownOptionalInteger(row.amount);
+    const requiredCount = parseUnknownOptionalInteger(row.requiredCount);
+    const equityPercent = parseUnknownOptionalInteger(row.equityPercent);
+    const skillTags = splitSkillTags(row.skillTags);
+    const isFilled = row.isFilled === true;
+
+    if (Number.isNaN(amount as number)) {
+      return {
+        error: `Le montant du besoin #${index + 1} est invalide.`,
+      };
+    }
+
+    if (Number.isNaN(requiredCount as number)) {
+      return {
+        error: `Le nombre requis du besoin #${index + 1} est invalide.`,
+      };
+    }
+
+    if (Number.isNaN(equityPercent as number)) {
+      return {
+        error: `Le pourcentage d'equity du besoin #${index + 1} est invalide.`,
+      };
+    }
+
+    if (typeof equityPercent === "number" && (equityPercent < 0 || equityPercent > 100)) {
+      return {
+        error: `Le pourcentage d'equity du besoin #${index + 1} doit être compris entre 0 et 100.`,
+      };
+    }
+
+    if (typeof amount === "number" && amount < 0) {
+      return {
+        error: `Le montant du besoin #${index + 1} doit être positif.`,
+      };
+    }
+
+    if (typeof requiredCount === "number" && requiredCount < 1) {
+      return {
+        error: `Le nombre requis du besoin #${index + 1} doit être supérieur ou égal à 1.`,
+      };
+    }
+
+    let normalizedAmount = amount;
+    let normalizedRequiredCount = requiredCount;
+
+    if (type === "FINANCIAL") {
+      if (typeof normalizedAmount !== "number" || normalizedAmount <= 0) {
+        return {
+          error:
+            `Besoin #${index + 1} (${PROJECT_NEED_TYPE_LABELS[type]}): le montant est obligatoire.`,
+        };
+      }
+
+      if (normalizedRequiredCount === null) {
+        normalizedRequiredCount = 1;
+      }
+    }
+
+    if (type === "SKILL") {
+      if (typeof normalizedRequiredCount !== "number" || normalizedRequiredCount <= 0) {
+        return {
+          error:
+            `Besoin #${index + 1} (${PROJECT_NEED_TYPE_LABELS[type]}): le nombre de profils est obligatoire.`,
+        };
+      }
+
+      normalizedAmount = null;
+    }
+
+    if (type === "MATERIAL" || type === "PARTNERSHIP") {
+      if (!description || description.length < 6) {
+        return {
+          error:
+            `Besoin #${index + 1} (${PROJECT_NEED_TYPE_LABELS[type]}): la description est obligatoire.`,
+        };
+      }
+
+      normalizedAmount = null;
+      normalizedRequiredCount = null;
+    }
+
+    parsedNeeds.push({
+      type,
+      title,
+      description,
+      amount: normalizedAmount,
+      requiredCount: normalizedRequiredCount,
+      equityPercent:
+        type === "FINANCIAL" || type === "SKILL" ? equityPercent : null,
+      skillTags: type === "SKILL" ? skillTags : [],
+      isFilled,
+    });
+  }
+
+  return { needs: parsedNeeds };
 }
 
 function getFileExtension(fileName: string) {
@@ -214,16 +418,21 @@ function parseAndValidateProjectForm(
   const equityModel = getValue(formData, "equityModel");
   const visibility = getValue(formData, "visibility");
   const equityNote = getValue(formData, "equityNote");
+  const needsPayload = getValue(formData, "projectNeedsPayload");
 
   const companyCreated = formData.get("companyCreated") === "on";
   const totalCapital = parseOptionalNumber(getValue(formData, "totalCapital"));
   const ownerContribution = parseOptionalNumber(getValue(formData, "ownerContribution"));
+  const ownerEquityPercent = parseOptionalNumber(
+    getValue(formData, "ownerEquityPercent")
+  );
   const imageFiles = formData
     .getAll("projectImages")
     .filter((value): value is File => value instanceof File && value.size > 0);
   const documentFiles = formData
     .getAll("projectDocuments")
     .filter((value): value is File => value instanceof File && value.size > 0);
+  const parsedNeeds = parseAndValidateProjectNeedsPayload(needsPayload);
 
   const fieldErrors: ProjectFormError["fieldErrors"] = {};
 
@@ -270,6 +479,37 @@ function parseAndValidateProjectForm(
   }
 
   if (
+    Number.isNaN(ownerEquityPercent as number) ||
+    (typeof ownerEquityPercent === "number" &&
+      (ownerEquityPercent < 0 || ownerEquityPercent > 100))
+  ) {
+    fieldErrors.ownerEquityPercent =
+      "Le pourcentage des parts du porteur doit être entre 0 et 100.";
+  }
+
+  if (parsedNeeds.needs) {
+    const ownerShare = typeof ownerEquityPercent === "number" ? ownerEquityPercent : 0;
+    const needsShare = parsedNeeds.needs.reduce(
+      (sum, need) => sum + (need.equityPercent ?? 0),
+      0
+    );
+    const totalShare = ownerShare + needsShare;
+
+    if (totalShare > 100) {
+      const shareError =
+        "La somme des parts (porteur + besoins) ne doit pas dépasser 100%.";
+      fieldErrors.ownerEquityPercent = shareError;
+      fieldErrors.projectNeeds = shareError;
+    }
+    if (totalShare < 100) {
+      const shareError =
+        "La somme des parts (porteur + besoins) ne doit pas être inférieure à 100%.";
+      fieldErrors.ownerEquityPercent = shareError;
+      fieldErrors.projectNeeds = shareError;
+    }
+  }
+
+  if (
     typeof totalCapital === "number" &&
     typeof ownerContribution === "number" &&
     ownerContribution > totalCapital
@@ -303,6 +543,11 @@ function parseAndValidateProjectForm(
     fieldErrors.projectDocuments = "Chaque document doit faire moins de 20 MB.";
   }
 
+  if (!parsedNeeds.needs) {
+    fieldErrors.projectNeeds =
+      parsedNeeds.error || "Les besoins du projet sont invalides.";
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return { fieldErrors };
   }
@@ -325,9 +570,11 @@ function parseAndValidateProjectForm(
       companyCreated,
       totalCapital,
       ownerContribution,
+      ownerEquityPercent,
       equityModel: equityModel as EquityModelValue,
       equityNote: equityNote || null,
       visibility: visibility as VisibilityValue,
+      needs: parsedNeeds.needs ?? [],
       imageFiles,
       documentFiles,
     },
@@ -490,6 +737,71 @@ async function normalizeProjectDocumentOrdering(db: AssetInsertDb, projectId: st
   `;
 }
 
+async function updateProjectOwnerEquityPercent(
+  db: AssetInsertDb,
+  projectId: string,
+  ownerEquityPercent: number | null
+) {
+  await db.$executeRaw`
+    UPDATE "Project"
+    SET "ownerEquityPercent" = ${ownerEquityPercent}
+    WHERE "id" = ${projectId}
+  `;
+}
+
+async function hasProjectNeedRequiredCountColumn() {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'ProjectNeed'
+          AND column_name = 'requiredCount'
+      ) AS "exists"
+    `;
+    return rows[0]?.exists === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function upsertProjectNeeds(
+  db: AssetInsertDb,
+  projectId: string,
+  needs: ParsedProjectNeedInput[]
+) {
+  await db.$executeRaw`
+    DELETE FROM "ProjectNeed"
+    WHERE "projectId" = ${projectId}
+  `;
+
+  if (needs.length === 0) {
+    return;
+  }
+
+  for (const need of needs) {
+    await db.$executeRaw`
+      INSERT INTO "ProjectNeed"
+        ("id", "projectId", "type", "title", "description", "amount", "requiredCount", "equityShare", "skillTags", "isFilled", "createdAt")
+      VALUES
+        (
+          ${crypto.randomUUID()},
+          ${projectId},
+          ${need.type},
+          ${need.title},
+          ${need.description},
+          ${need.amount},
+          ${need.requiredCount},
+          ${need.equityPercent},
+          ${need.skillTags},
+          ${need.isFilled},
+          NOW()
+        )
+    `;
+  }
+}
+
 function mapProjectAssetError(
   error: unknown,
   context: "image" | "document" | "mixed"
@@ -610,7 +922,19 @@ export async function createProjectAction(
   }
 
   const input = parsed.data;
+  const canPersistRequiredCount = await hasProjectNeedRequiredCountColumn();
 
+  if (input.needs.length > 0 && !canPersistRequiredCount) {
+    return {
+      ok: false,
+      message:
+        "La colonne requiredCount est absente dans ProjectNeed. Exécutez le script SQL de mise à niveau puis réessayez.",
+      fieldErrors: {
+        projectNeeds:
+          "La base ne supporte pas encore requiredCount sur ProjectNeed.",
+      },
+    };
+  }
   const project = await createProjectDraft({
     ownerId: session.user.id,
     title: input.title,
@@ -623,6 +947,7 @@ export async function createProjectAction(
     companyCreated: input.companyCreated,
     totalCapital: input.totalCapital,
     ownerContribution: input.ownerContribution,
+    ownerEquityPercent: input.ownerEquityPercent,
     equityModel: input.equityModel,
     equityNote: input.equityNote,
     visibility: input.visibility,
@@ -656,7 +981,11 @@ export async function createProjectAction(
       uploadedDocuments = documentUploadResult.uploadedDocuments;
     }
 
-    if (uploadedImageStorageKeys.length > 0 || uploadedDocuments.length > 0) {
+    if (
+      uploadedImageStorageKeys.length > 0 ||
+      uploadedDocuments.length > 0 ||
+      input.needs.length > 0
+    ) {
       await prisma.$transaction(async (tx) => {
         if (uploadedImageStorageKeys.length > 0) {
           await insertProjectImageRecords(tx, project.id, uploadedImageStorageKeys, 0);
@@ -664,6 +993,10 @@ export async function createProjectAction(
 
         if (uploadedDocuments.length > 0) {
           await insertProjectDocumentRecords(tx, project.id, uploadedDocuments, 0);
+        }
+
+        if (input.needs.length > 0) {
+          await upsertProjectNeeds(tx, project.id, input.needs);
         }
       });
     }
@@ -682,12 +1015,30 @@ export async function createProjectAction(
       })
       .catch(() => undefined);
 
+    const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    if (
+      input.needs.length > 0 &&
+      (reason.includes("requiredCount") || reason.includes("ProjectNeed"))
+    ) {
+      return {
+        ok: false,
+        message:
+          "Impossible d'enregistrer les besoins du projet. Vérifiez la structure de la table ProjectNeed.",
+        fieldErrors: {
+          projectNeeds:
+            "La sauvegarde des besoins a échoué (requiredCount/ProjectNeed).",
+        },
+      };
+    }
+
     const context =
       input.imageFiles.length > 0 && input.documentFiles.length > 0
         ? "mixed"
         : input.documentFiles.length > 0
           ? "document"
-          : "image";
+          : input.imageFiles.length > 0
+            ? "image"
+            : "mixed";
 
     return mapProjectAssetError(error, context);
   }
@@ -720,25 +1071,26 @@ export async function updateProjectAction(
   _prevState: ProjectFormState,
   formData: FormData
 ): Promise<ProjectFormState> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  if (!session?.user?.id) {
-    return {
-      ok: false,
-      message: "Session invalide. Reconnectez-vous.",
-    };
-  }
+    if (!session?.user?.id) {
+      return {
+        ok: false,
+        message: "Session invalide. Reconnectez-vous.",
+      };
+    }
 
-  const projectId = getValue(formData, "projectId");
-  if (!projectId) {
-    return {
-      ok: false,
-      message: "Projet introuvable.",
-    };
-  }
+    const projectId = getValue(formData, "projectId");
+    if (!projectId) {
+      return {
+        ok: false,
+        message: "Projet introuvable.",
+      };
+    }
 
   const project = await prisma.project.findFirst({
     where: {
@@ -839,6 +1191,19 @@ export async function updateProjectAction(
   }
 
   const input = parsed.data;
+  const canPersistRequiredCount = await hasProjectNeedRequiredCountColumn();
+
+  if (input.needs.length > 0 && !canPersistRequiredCount) {
+    return {
+      ok: false,
+      message:
+        "La colonne requiredCount est absente dans ProjectNeed. Exécutez le script SQL de mise à niveau puis réessayez.",
+      fieldErrors: {
+        projectNeeds:
+          "La base ne supporte pas encore requiredCount sur ProjectNeed.",
+      },
+    };
+  }
 
   if (!hasProjectDocumentTable && input.documentFiles.length > 0) {
     return {
@@ -876,12 +1241,30 @@ export async function updateProjectAction(
       uploadedDocuments = documentUploadResult.uploadedDocuments;
     }
   } catch (error) {
+    const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    if (
+      input.needs.length > 0 &&
+      (reason.includes("requiredCount") || reason.includes("ProjectNeed"))
+    ) {
+      return {
+        ok: false,
+        message:
+          "Impossible de préparer la mise à jour des besoins du projet.",
+        fieldErrors: {
+          projectNeeds:
+            "La validation/sauvegarde des besoins a échoué. Vérifiez les champs.",
+        },
+      };
+    }
+
     const context =
       input.imageFiles.length > 0 && input.documentFiles.length > 0
         ? "mixed"
         : input.documentFiles.length > 0
           ? "document"
-          : "image";
+          : input.imageFiles.length > 0
+            ? "image"
+            : "mixed";
 
     return mapProjectAssetError(error, context);
   }
@@ -908,6 +1291,7 @@ export async function updateProjectAction(
           visibility: input.visibility,
         },
       });
+      await updateProjectOwnerEquityPercent(tx, project.id, input.ownerEquityPercent);
 
       if (removableImages.length > 0) {
         await tx.$executeRaw`
@@ -947,6 +1331,8 @@ export async function updateProjectAction(
       if (hasProjectDocumentTable) {
         await normalizeProjectDocumentOrdering(tx, project.id);
       }
+
+      await upsertProjectNeeds(tx, project.id, input.needs);
     });
   } catch (error) {
     if (uploadedImageObjectKeys.length > 0) {
@@ -969,6 +1355,21 @@ export async function updateProjectAction(
     }
 
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    if (
+      input.needs.length > 0 &&
+      (reason.includes("requiredCount") || reason.includes("ProjectNeed"))
+    ) {
+      return {
+        ok: false,
+        message:
+          "Impossible d'enregistrer les besoins du projet. Vérifiez la structure de ProjectNeed.",
+        fieldErrors: {
+          projectNeeds:
+            "La sauvegarde des besoins a échoué (requiredCount/ProjectNeed).",
+        },
+      };
+    }
+
     console.error("Project update failed:", reason);
     return {
       ok: false,
@@ -1002,11 +1403,23 @@ export async function updateProjectAction(
   revalidatePath(`/projects/${project.id}`);
   revalidatePath("/projects");
 
-  return {
-    ok: true,
-    message: "Projet mis à jour avec succès.",
-    projectId: project.id,
-  };
+    return {
+      ok: true,
+      message: "Projet mis à jour avec succès.",
+      projectId: project.id,
+    };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    console.error("Unexpected project update server action failure:", reason);
+
+    return {
+      ok: false,
+      message:
+        process.env.NODE_ENV === "development"
+          ? `Impossible de mettre à jour le projet. Détail: ${reason}`
+          : "Impossible de mettre à jour le projet pour le moment. Réessayez.",
+    };
+  }
 }
 
 export async function updateProjectStatusAction(formData: FormData) {
@@ -1028,6 +1441,47 @@ export async function updateProjectStatusAction(formData: FormData) {
 
   if (!PROJECT_STATUSES.includes(status as (typeof PROJECT_STATUSES)[number])) {
     return;
+  }
+
+  if (status === "ARCHIVED") {
+    const closureRows = await prisma.$queryRaw<
+      Array<{
+        ownerEquityPercent: number | null;
+        needsSharePercent: unknown;
+      }>
+    >`
+      SELECT
+        p."ownerEquityPercent",
+        COALESCE(SUM(n."equityShare"), 0) AS "needsSharePercent"
+      FROM "Project" p
+      LEFT JOIN "ProjectNeed" n
+        ON n."projectId" = p."id"
+      WHERE p."id" = ${projectId}
+        AND p."ownerId" = ${session.user.id}
+      GROUP BY p."id", p."ownerEquityPercent"
+    `;
+
+    if (closureRows.length === 0) {
+      return;
+    }
+
+    const closureRow = closureRows[0];
+    const ownerSharePercent = closureRow.ownerEquityPercent ?? 0;
+    const parsedNeedsSharePercent =
+      typeof closureRow.needsSharePercent === "number"
+        ? closureRow.needsSharePercent
+        : Number.parseInt(String(closureRow.needsSharePercent ?? "0"), 10);
+    const needsSharePercent = Number.isFinite(parsedNeedsSharePercent)
+      ? parsedNeedsSharePercent
+      : 0;
+    const totalAllocatedShare = ownerSharePercent + needsSharePercent;
+
+    if (totalAllocatedShare !== 100) {
+      console.warn(
+        `Project ${projectId} cannot be archived: equity allocation is ${totalAllocatedShare}% (expected 100%).`
+      );
+      return;
+    }
   }
 
   await prisma.project.updateMany({

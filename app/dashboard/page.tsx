@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import prisma from "@/src/lib/prisma";
@@ -37,6 +38,7 @@ const statusClasses: Record<string, string> = {
 type DashboardNeed = {
   id: string;
   isFilled: boolean;
+  equityShare: number | null;
 };
 
 type DashboardProject = {
@@ -72,6 +74,25 @@ function formatDate(date: Date) {
 
 function createDashboardHref(page: number, limit: number) {
   return `/dashboard?page=${page}&limit=${limit}`;
+}
+
+async function getOwnerEquityPercentByProjectIds(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  try {
+    const rows = await prisma.$queryRaw<
+      Array<{ id: string; ownerEquityPercent: number | null }>
+    >`
+      SELECT "id", "ownerEquityPercent"
+      FROM "Project"
+      WHERE "id" IN (${Prisma.join(projectIds)})
+    `;
+    return new Map(rows.map((row) => [row.id, row.ownerEquityPercent ?? 0]));
+  } catch {
+    return new Map<string, number>();
+  }
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -115,6 +136,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         select: {
           id: true,
           isFilled: true,
+          equityShare: true,
         },
       },
     },
@@ -124,6 +146,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     skip: (currentPage - 1) * itemsPerPage,
     take: itemsPerPage,
   })) as DashboardProject[];
+  const ownerEquityPercentByProjectId = await getOwnerEquityPercentByProjectIds(
+    projects.map((project) => project.id)
+  );
 
   const statusCounts = await prisma.project.groupBy({
     by: ["status"],
@@ -251,6 +276,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   totalNeedsByProject > 0
                     ? Math.round((filledNeedsByProject / totalNeedsByProject) * 100)
                     : 0;
+                const needsEquityPercent = project.needs.reduce(
+                  (sum, need) => sum + (need.equityShare ?? 0),
+                  0
+                );
+                const ownerEquityPercent =
+                  ownerEquityPercentByProjectId.get(project.id) ?? 0;
+                const totalAllocatedShare = ownerEquityPercent + needsEquityPercent;
+                const canCloseProject = totalAllocatedShare === 100;
 
                 return (
                   <div
@@ -277,6 +310,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                           <span>{project.city}</span>
                           <span>Mis à jour le {formatDate(project.updatedAt)}</span>
                           <span>Capital: {formatMoney(project.totalCapital)}</span>
+                          <span>
+                            Parts allouées: {totalAllocatedShare}% (porteur{" "}
+                            {ownerEquityPercent}%)
+                          </span>
                         </div>
                       </div>
 
@@ -319,7 +356,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                         >
                           <option value="DRAFT">Brouillon</option>
                           <option value="PUBLISHED">Publié</option>
-                          <option value="ARCHIVED">Archivé</option>
+                          <option
+                            value="ARCHIVED"
+                            disabled={!canCloseProject && project.status !== "ARCHIVED"}
+                          >
+                            Archivé
+                          </option>
                         </select>
                         <button
                           type="submit"

@@ -21,6 +21,8 @@ export function ProjectFilters({ categories }: { categories: string[] }) {
           <option value="">Tous types</option>
           <option value="FINANCIAL">Financier</option>
           <option value="SKILL">Compétence</option>
+          <option value="MATERIAL">Matériel</option>
+          <option value="PARTNERSHIP">Partenariat</option>
         </select>
       </div>
 

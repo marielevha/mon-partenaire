@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { updateProjectAction } from "@/app/dashboard/actions";
 import {
   CreateProjectForm,
   type ProjectFormValues,
@@ -9,6 +8,7 @@ import {
 import {
   buildProjectDocumentPublicUrl,
   buildProjectImagePublicUrl,
+  getProjectNeedsByProjectId,
 } from "@/src/lib/projects";
 import prisma from "@/src/lib/prisma";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
@@ -81,6 +81,16 @@ export default async function DashboardEditProjectPage({
     redirect("/dashboard");
   }
 
+  const ownerEquityRows = await prisma.$queryRaw<
+    Array<{ ownerEquityPercent: number | null }>
+  >`
+    SELECT "ownerEquityPercent"
+    FROM "Project"
+    WHERE "id" = ${project.id}
+    LIMIT 1
+  `;
+  const ownerEquityPercent = ownerEquityRows[0]?.ownerEquityPercent ?? null;
+
   const initialValues: ProjectFormValues = {
     title: project.title,
     city: project.city,
@@ -95,6 +105,10 @@ export default async function DashboardEditProjectPage({
     ownerContribution:
       typeof project.ownerContribution === "number"
         ? String(project.ownerContribution)
+        : "",
+    ownerEquityPercent:
+      typeof ownerEquityPercent === "number"
+        ? String(ownerEquityPercent)
         : "",
     equityNote: project.equityNote ?? "",
     companyCreated: project.companyCreated,
@@ -135,6 +149,7 @@ export default async function DashboardEditProjectPage({
     sizeBytes: document.sizeBytes,
     url: buildProjectDocumentPublicUrl(document.storagePath),
   }));
+  const existingNeeds = await getProjectNeedsByProjectId(project.id);
 
   return (
     <section className="space-y-6">
@@ -164,11 +179,11 @@ export default async function DashboardEditProjectPage({
       <div className="dashboard-panel rounded-2xl p-6">
         <CreateProjectForm
           mode="edit"
-          action={updateProjectAction}
           initialValues={initialValues}
           projectId={project.id}
           existingImages={existingImages}
           existingDocuments={mappedDocuments}
+          existingNeeds={existingNeeds}
         />
       </div>
     </section>
