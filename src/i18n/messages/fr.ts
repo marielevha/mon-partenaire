@@ -210,6 +210,93 @@ export const frMessages = {
       about: "À propos",
     },
   },
+  auth: {
+    loginPage: {
+      title: "Connexion",
+      description: "Retrouvez votre espace partenaire.",
+      sideTitle: "Bougez vite, créez bien.",
+      sideDescription:
+        "Connectez-vous pour matcher avec les bons profils et accélérer la création de votre projet.",
+      sideHighlights: [
+        {
+          title: "Matchs qualifiés",
+          description:
+            "Des partenaires financiers et techniques déjà sensibilisés à votre vision.",
+        },
+        {
+          title: "Parcours clair",
+          description:
+            "Des étapes simples pour passer d'une idée à une structure légale.",
+        },
+        {
+          title: "Communauté engagée",
+          description:
+            "Des échanges rapides, centrés sur l'action et la confiance.",
+        },
+      ],
+      switchText: "Pas encore de compte ?",
+      switchLinkText: "Créer un compte",
+    },
+    signupPage: {
+      title: "Création de compte",
+      description: "",
+      sideTitle: "Trouvez le bon coéquipier.",
+      sideDescription:
+        "La communauté Mon partenaire rassemble finance, compétences et énergie pour transformer une idée en entreprise.",
+      sideHighlights: [
+        {
+          title: "Aventure entrepreneuriale",
+          description:
+            "Lancez votre aventure entrepreneuriale avec un cadre clair dès l'inscription.",
+        },
+        {
+          title: "Profils vérifiés",
+          description:
+            "Un parcours de sélection qui met en avant l'engagement et la complémentarité.",
+        },
+        {
+          title: "Objectifs partagés",
+          description:
+            "Construisez une équipe alignée sur vos valeurs et vos délais.",
+        },
+        {
+          title: "Accompagnement clair",
+          description:
+            "Des ressources pour structurer, financer et lancer votre société.",
+        },
+      ],
+      switchText: "Déjà un compte ?",
+      switchLinkText: "Se connecter",
+    },
+    loginForm: {
+      emailLabel: "Adresse email",
+      emailPlaceholder: "prenom@email.com",
+      passwordLabel: "Mot de passe",
+      passwordPlaceholder: "Au moins 8 caractères",
+      showPassword: "Afficher",
+      hidePassword: "Masquer",
+      forgotPassword: "Mot de passe oublié ?",
+      supportText: "Support 7j/7",
+      submitIdle: "Se connecter",
+      submitPending: "Connexion...",
+    },
+    signupForm: {
+      nameLabel: "Prénom",
+      namePlaceholder: "Camille",
+      phoneLabel: "Téléphone",
+      phonePlaceholder: "+242 06 123 45 67",
+      emailLabel: "Adresse email",
+      emailPlaceholder: "prenom@email.com",
+      passwordLabel: "Mot de passe",
+      passwordPlaceholder: "Au moins 8 caractères",
+      showPassword: "Afficher",
+      hidePassword: "Masquer",
+      termsText:
+        "En créant un compte, vous acceptez nos Conditions d'utilisation et notre Politique de confidentialité.",
+      submitIdle: "Créer mon compte",
+      submitPending: "Création...",
+    },
+  },
   documents: {
     page: {
       eyebrow: "Bibliothèque de modèles",

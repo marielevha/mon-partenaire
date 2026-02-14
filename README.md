@@ -193,6 +193,21 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - `/projects`,
   - `/projects/[id]`.
 
+## Mise à jour récente (Auth & UX)
+
+- Internationalisation des pages d'authentification:
+  - `login` et `signup` branchées sur i18n (`fr`, `en`, `cg`),
+  - formulaires `LoginForm` et `SignupForm` localisés (labels, placeholders, boutons, textes contextuels).
+- Amélioration UX des pages auth:
+  - liens de bascule (`Se connecter` / `Créer un compte`) rendus plus visibles,
+  - titre du bloc formulaire mis en évidence par un badge.
+- Champ mot de passe amélioré:
+  - remplacement du texte `Afficher / Masquer` par une icône oeil/oeil barré,
+  - accessibilité conservée avec labels localisés (`aria-label`, `title`, `sr-only`).
+- Correctif état session dans le header public:
+  - après déconnexion, le dropdown utilisateur n'est plus affiché,
+  - les boutons `Se connecter` et `Créer un compte` apparaissent correctement.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

@@ -209,6 +209,93 @@ export const enMessages = {
       about: "About",
     },
   },
+  auth: {
+    loginPage: {
+      title: "Sign in",
+      description: "Access your partner workspace.",
+      sideTitle: "Move fast, build right.",
+      sideDescription:
+        "Sign in to match with the right profiles and accelerate your project launch.",
+      sideHighlights: [
+        {
+          title: "Qualified matches",
+          description:
+            "Financial and technical partners already aligned with your vision.",
+        },
+        {
+          title: "Clear journey",
+          description:
+            "Simple steps to move from idea to legal company setup.",
+        },
+        {
+          title: "Committed community",
+          description:
+            "Fast exchanges focused on action and trust.",
+        },
+      ],
+      switchText: "No account yet?",
+      switchLinkText: "Create account",
+    },
+    signupPage: {
+      title: "Create account",
+      description: "",
+      sideTitle: "Find the right co-founder.",
+      sideDescription:
+        "The Mon partenaire community brings together finance, skills, and energy to turn ideas into companies.",
+      sideHighlights: [
+        {
+          title: "Entrepreneurial journey",
+          description:
+            "Start your entrepreneurial journey with a clear framework from signup.",
+        },
+        {
+          title: "Verified profiles",
+          description:
+            "A selection flow highlighting commitment and complementarity.",
+        },
+        {
+          title: "Shared objectives",
+          description:
+            "Build a team aligned with your values and timelines.",
+        },
+        {
+          title: "Clear guidance",
+          description:
+            "Resources to structure, fund, and launch your company.",
+        },
+      ],
+      switchText: "Already have an account?",
+      switchLinkText: "Sign in",
+    },
+    loginForm: {
+      emailLabel: "Email address",
+      emailPlaceholder: "name@email.com",
+      passwordLabel: "Password",
+      passwordPlaceholder: "At least 8 characters",
+      showPassword: "Show",
+      hidePassword: "Hide",
+      forgotPassword: "Forgot password?",
+      supportText: "Support 7/7",
+      submitIdle: "Sign in",
+      submitPending: "Signing in...",
+    },
+    signupForm: {
+      nameLabel: "First name",
+      namePlaceholder: "Camille",
+      phoneLabel: "Phone",
+      phonePlaceholder: "+242 06 123 45 67",
+      emailLabel: "Email address",
+      emailPlaceholder: "name@email.com",
+      passwordLabel: "Password",
+      passwordPlaceholder: "At least 8 characters",
+      showPassword: "Show",
+      hidePassword: "Hide",
+      termsText:
+        "By creating an account, you agree to our Terms of Use and Privacy Policy.",
+      submitIdle: "Create my account",
+      submitPending: "Creating...",
+    },
+  },
   documents: {
     page: {
       eyebrow: "Template library",

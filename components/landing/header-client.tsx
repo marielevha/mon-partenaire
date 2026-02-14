@@ -29,6 +29,7 @@ export function HeaderClient({
 }: HeaderClientProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isAuthenticated = Boolean(initialSession?.user?.id);
 
   const email =
     typeof initialSession?.user?.email === "string"
@@ -40,14 +41,15 @@ export function HeaderClient({
       : "";
   const fallbackName = email ? email.split("@")[0] : labels.accountFallback;
   const displayName = initialFullName?.trim() || metadataFullName.trim() || fallbackName;
+  const resolvedDisplayName = displayName || labels.accountFallback;
 
   const initials = useMemo(() => {
-    if (!displayName) return "MP";
-    const words = displayName.split(/\s+/).filter(Boolean);
+    if (!resolvedDisplayName) return "MP";
+    const words = resolvedDisplayName.split(/\s+/).filter(Boolean);
     if (words.length === 0) return "MP";
     if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
     return `${words[0][0]}${words[1][0]}`.toUpperCase();
-  }, [displayName]);
+  }, [resolvedDisplayName]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -91,7 +93,7 @@ export function HeaderClient({
 
   return (
     <div className="flex items-center gap-3">
-      {displayName ? (
+      {isAuthenticated ? (
         <div className="relative" ref={menuRef}>
           <button
             type="button"
@@ -105,7 +107,7 @@ export function HeaderClient({
               <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-surface bg-emerald-400" />
             </span>
             <span className="max-w-[130px] truncate text-sm font-medium text-text-primary">
-              {displayName}
+              {resolvedDisplayName}
             </span>
             <svg
               aria-hidden="true"
@@ -128,7 +130,7 @@ export function HeaderClient({
               className="absolute right-0 z-50 mt-3 w-[290px] overflow-hidden rounded-2xl border border-border bg-surface/95 text-text-primary shadow-medium backdrop-blur-xl"
             >
               <div className="border-b border-border/70 px-5 py-4">
-                <p className="text-base font-semibold text-text-primary">{displayName}</p>
+                <p className="text-base font-semibold text-text-primary">{resolvedDisplayName}</p>
                   <p className="mt-1 truncate text-sm text-text-secondary">
                   {email || labels.connectedAccount}
                 </p>

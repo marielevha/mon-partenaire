@@ -20,21 +20,35 @@ type LoginState =
   | { ok: false; message: string }
   | { ok: true; full_name?: string };
 
-const SubmitButton = () => {
+type LoginFormLabels = {
+  emailLabel: string;
+  emailPlaceholder: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  showPassword: string;
+  hidePassword: string;
+  forgotPassword: string;
+  supportText: string;
+  submitIdle: string;
+  submitPending: string;
+};
+
+const SubmitButton = ({ labels }: { labels: LoginFormLabels }) => {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" size="lg" className="w-full" disabled={pending}>
-      {pending ? "Connexion..." : "Se connecter"}
+      {pending ? labels.submitPending : labels.submitIdle}
     </Button>
   );
 };
 
 interface LoginFormProps {
   onSubmit?: (email: string) => void;
+  labels: LoginFormLabels;
 }
 
-export function LoginForm({ onSubmit }: LoginFormProps) {
+export function LoginForm({ onSubmit, labels }: LoginFormProps) {
   const [state, formAction] = useActionState<LoginState, FormData>(
     loginAction,
     initialState
@@ -69,11 +83,11 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       className="mx-auto w-full max-w-md space-y-5"
     >
       <label className="flex flex-col gap-2 text-sm text-text-primary">
-        <span className="font-medium">Adresse email</span>
+        <span className="font-medium">{labels.emailLabel}</span>
         <input
           type="email"
           name="email"
-          placeholder="prenom@email.com"
+          placeholder={labels.emailPlaceholder}
           autoComplete="email"
           className={cn(inputStyles)}
           required
@@ -81,9 +95,11 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
       </label>
 
       <PasswordField
-        label="Mot de passe"
+        label={labels.passwordLabel}
         name="password"
-        placeholder="Au moins 8 caractères"
+        placeholder={labels.passwordPlaceholder}
+        showLabel={labels.showPassword}
+        hideLabel={labels.hidePassword}
         autoComplete="current-password"
         required
       />
@@ -93,9 +109,9 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           href="/auth/forgot-password"
           className="font-medium text-accent transition-colors hover:text-accent-strong"
         >
-          Mot de passe oublié ?
+          {labels.forgotPassword}
         </Link>
-        <span className="text-xs">Support 7j/7</span>
+        <span className="text-xs">{labels.supportText}</span>
       </div>
 
       {state?.ok === false ? (
@@ -104,7 +120,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         </div>
       ) : null}
 
-      <SubmitButton />
+      <SubmitButton labels={labels} />
     </form>
   );
 }

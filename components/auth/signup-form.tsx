@@ -20,21 +20,38 @@ type ActionResult =
 
 type SignupState = typeof initialState | ActionResult;
 
-const SubmitButton = () => {
+type SignupFormLabels = {
+  nameLabel: string;
+  namePlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  showPassword: string;
+  hidePassword: string;
+  termsText: string;
+  submitIdle: string;
+  submitPending: string;
+};
+
+const SubmitButton = ({ labels }: { labels: SignupFormLabels }) => {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" size="lg" className="w-full" disabled={pending}>
-      {pending ? "Création..." : "Créer mon compte"}
+      {pending ? labels.submitPending : labels.submitIdle}
     </Button>
   );
 };
 
 interface SignupFormProps {
   onSubmit?: (email: string) => void;
+  labels: SignupFormLabels;
 }
 
-export function SignupForm({ onSubmit }: SignupFormProps) {
+export function SignupForm({ onSubmit, labels }: SignupFormProps) {
   const [state, formAction] = useActionState<SignupState, FormData>(
     signupAction,
     initialState
@@ -61,11 +78,11 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
       className="mx-auto w-full max-w-md space-y-5"
     >
       <label className="flex flex-col gap-2 text-sm text-text-primary">
-        <span className="font-medium">Prénom</span>
+        <span className="font-medium">{labels.nameLabel}</span>
         <input
           type="text"
           name="name"
-          placeholder="Camille"
+          placeholder={labels.namePlaceholder}
           autoComplete="given-name"
           className={cn(inputStyles)}
           required
@@ -73,22 +90,22 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
       </label>
 
       <label className="flex flex-col gap-2 text-sm text-text-primary">
-        <span className="font-medium">Téléphone</span>
+        <span className="font-medium">{labels.phoneLabel}</span>
         <input
           type="tel"
           name="phone"
-          placeholder="+242 06 123 45 67"
+          placeholder={labels.phonePlaceholder}
           autoComplete="tel"
           className={cn(inputStyles)}
         />
       </label>
 
       <label className="flex flex-col gap-2 text-sm text-text-primary">
-        <span className="font-medium">Adresse email</span>
+        <span className="font-medium">{labels.emailLabel}</span>
         <input
           type="email"
           name="email"
-          placeholder="prenom@email.com"
+          placeholder={labels.emailPlaceholder}
           autoComplete="email"
           className={cn(inputStyles)}
           required
@@ -96,17 +113,16 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
       </label>
 
       <PasswordField
-        label="Mot de passe"
+        label={labels.passwordLabel}
         name="password"
-        placeholder="Au moins 8 caractères"
+        placeholder={labels.passwordPlaceholder}
+        showLabel={labels.showPassword}
+        hideLabel={labels.hidePassword}
         autoComplete="new-password"
         required
       />
 
-      <p className="text-xs text-text-secondary">
-        En créant un compte, vous acceptez nos Conditions d'utilisation et
-        notre Politique de confidentialité.
-      </p>
+      <p className="text-xs text-text-secondary">{labels.termsText}</p>
 
       {state?.ok === false ? (
         <div className="rounded-[calc(var(--radius)_-_8px)] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
@@ -114,7 +130,7 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
         </div>
       ) : null}
 
-      <SubmitButton />
+      <SubmitButton labels={labels} />
     </form>
   );
 }
