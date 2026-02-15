@@ -6,7 +6,7 @@ import { cn } from "@/components/ui/utils";
 
 interface AuthCardProps {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   sideTitle: string;
   sideDescription: string;
@@ -77,13 +77,17 @@ export function AuthCard({
       </section>
 
       <section className="flex h-full flex-col justify-center">
-        <div className="mx-auto w-full max-w-md space-y-2 text-center">
-          <p className="text-sm font-semibold text-text-secondary">
-            {title}
-          </p>
-          <h2 className="text-2xl font-semibold text-text-primary">
-            {description}
-          </h2>
+        <div className="mx-auto w-full max-w-md space-y-3 text-center">
+          <div className="flex justify-center">
+            <p className="inline-flex items-center rounded-full border border-accent/35 bg-accent/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">
+              {title}
+            </p>
+          </div>
+          {description?.trim() ? (
+            <h2 className="text-2xl font-semibold leading-tight text-text-primary md:text-3xl">
+              {description}
+            </h2>
+          ) : null}
         </div>
         <div className="mt-8">{children}</div>
       </section>

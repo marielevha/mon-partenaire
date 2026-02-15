@@ -17,6 +17,7 @@ const DashboardNav = dynamic(
         <div className="dashboard-panel-soft h-10 rounded-xl" />
         <div className="dashboard-panel-soft h-10 rounded-xl" />
         <div className="dashboard-panel-soft h-10 rounded-xl" />
+        <div className="dashboard-panel-soft h-10 rounded-xl" />
       </nav>
     ),
   }

@@ -6,6 +6,8 @@ import { cn } from "@/components/ui/utils";
 interface PasswordFieldProps {
   label: string;
   name: string;
+  showLabel?: string;
+  hideLabel?: string;
   placeholder?: string;
   value?: string;
   onChange?: (value: string) => void;
@@ -17,6 +19,8 @@ interface PasswordFieldProps {
 export function PasswordField({
   label,
   name,
+  showLabel = "Afficher",
+  hideLabel = "Masquer",
   placeholder,
   value,
   onChange,
@@ -50,9 +54,43 @@ export function PasswordField({
         <button
           type="button"
           onClick={() => setVisible((current) => !current)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-text-secondary transition-colors hover:text-text-primary"
+          aria-label={visible ? hideLabel : showLabel}
+          title={visible ? hideLabel : showLabel}
+          className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-surface-accent hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
         >
-          {visible ? "Masquer" : "Afficher"}
+          {visible ? (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4.5 w-4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 3 21 21" />
+              <path d="M10.6 10.6A2 2 0 0 0 12 14a2 2 0 0 0 1.4-.6" />
+              <path d="M9.4 5.1A10.9 10.9 0 0 1 12 4c5.2 0 9.2 3.4 10 8-.3 1.9-1.2 3.6-2.5 5" />
+              <path d="M6.6 6.7C4.5 8 2.9 9.9 2 12c.8 2.8 2.9 5.1 5.7 6.4" />
+              <path d="M14.1 18.7c-.7.2-1.4.3-2.1.3-1 0-1.9-.2-2.8-.4" />
+            </svg>
+          ) : (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4.5 w-4.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M2 12s3.6-8 10-8 10 8 10 8-3.6 8-10 8-10-8-10-8Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          )}
+          <span className="sr-only">{visible ? hideLabel : showLabel}</span>
         </button>
       </div>
       {error ? (

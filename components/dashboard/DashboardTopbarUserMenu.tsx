@@ -170,7 +170,7 @@ export function DashboardTopbarUserMenu({
             </Link>
 
             <Link
-              href="/a-propos"
+              href="/dashboard/profile"
               onClick={closeMenu}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import prisma from "@/src/lib/prisma";
 import { Header } from "@/components/landing/header";
 import { Footer } from "@/components/landing/footer";
@@ -238,13 +237,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectDetailPage({ params }: Props) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) redirect("/auth/login");
-
   const resolvedParams = params ? await params : undefined;
   const id = resolvedParams?.id;
 
@@ -342,10 +334,6 @@ export default async function ProjectDetailPage({ params }: Props) {
       : project.status === "ARCHIVED"
         ? "bg-slate-500/10 text-slate-600"
         : "bg-amber-500/10 text-amber-700";
-
-  const userMetaName = session.user.user_metadata?.full_name;
-  const initialContactName = typeof userMetaName === "string" ? userMetaName : undefined;
-  const initialContactEmail = session.user.email;
 
   return (
     <div className="relative min-h-screen bg-background text-text-primary">
@@ -747,8 +735,6 @@ export default async function ProjectDetailPage({ params }: Props) {
                   projectId={project.id}
                   projectTitle={project.title}
                   projectCity={project.city}
-                  initialName={initialContactName}
-                  initialEmail={initialContactEmail}
                 />
               </Card>
 

@@ -1,47 +1,27 @@
 import { Card } from "@/components/ui/card";
 import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
+import { getI18n } from "@/src/i18n";
 
-const trustPoints = [
-  {
-    title: "Parts définies dès le départ",
-    description:
-      "Une grille de répartition claire pour éviter les zones d’ombre.",
-  },
-  {
-    title: "Deal room privée",
-    description:
-      "Échangez vos documents et discussions dans un espace sécurisé.",
-  },
-  {
-    title: "Documents modèles",
-    description:
-      "Accès à des statuts et contrats adaptés au contexte local.",
-  },
-  {
-    title: "Validation manuelle (MVP)",
-    description:
-      "Chaque projet est vérifié pour garantir la crédibilité des annonces.",
-  },
-];
+export async function Trust() {
+  const messages = await getI18n();
+  const t = messages.landing.trust;
 
-export function Trust() {
   return (
     <Section id="confiance">
       <Container>
         <div className="mb-10 max-w-2xl">
-          <p className="text-sm font-semibold text-accent">Confiance & cadre</p>
+          <p className="text-sm font-semibold text-accent">{t.eyebrow}</p>
           <h2 className="mt-2 text-3xl font-semibold text-text-primary">
-            De la transparence dès le premier contact.
+            {t.title}
           </h2>
           <p className="mt-4 text-sm text-text-secondary">
-            Une expérience guidée pour éviter les malentendus et accélérer la
-            prise de décision.
+            {t.description}
           </p>
         </div>
         <div className="grid gap-6 lg:grid-cols-[1fr_0.7fr]">
           <div className="grid gap-6 md:grid-cols-2">
-            {trustPoints.map((point) => (
+            {t.points.map((point) => (
               <Card
                 key={point.title}
                 className="flex flex-col gap-4 border-border/60 bg-surface/80 shadow-medium"
@@ -73,20 +53,18 @@ export function Trust() {
           <Card className="relative overflow-hidden border-border/60 bg-surface/85 shadow-medium">
             <div className="pointer-events-none absolute inset-0 bg-accent-gradient opacity-70" />
             <div className="relative space-y-4">
-              <p className="text-sm font-semibold text-accent">Score confiance</p>
+              <p className="text-sm font-semibold text-accent">{t.scoreTitle}</p>
               <h3 className="text-2xl font-semibold text-text-primary">
-                4.8/5 sur la clarté des échanges.
+                {t.scoreValue}
               </h3>
               <p className="text-sm text-text-secondary">
-                Les utilisateurs apprécient la transparence des apports et la
-                formalisation rapide des engagements.
+                {t.scoreDescription}
               </p>
             </div>
           </Card>
         </div>
         <p className="mt-6 text-sm text-text-secondary">
-          Disclaimer : les documents modèles sont fournis à titre indicatif et
-          doivent être validés par un conseiller juridique avant signature.
+          {t.disclaimer}
         </p>
       </Container>
     </Section>

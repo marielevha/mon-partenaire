@@ -171,6 +171,62 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - case `Entreprise déjà créée` décochée par défaut,
   - ajout d'aides contextuelles `?` sur les champs du formulaire projet et besoins.
 
+## Mise à jour récente (i18n & navigation publique)
+
+- Internationalisation centralisée des textes statiques avec 3 langues:
+  - `fr` (français),
+  - `en` (anglais),
+  - `cg` (lingala).
+- Nouveau module i18n:
+  - dictionnaires: `src/i18n/messages/fr.ts`, `src/i18n/messages/en.ts`, `src/i18n/messages/cg.ts`,
+  - résolution locale/cookie: `src/i18n/index.ts`.
+- Sélecteur de langue dans le header (`FR / EN / CG`) avec persistance cookie:
+  - endpoint: `GET /api/locale`,
+  - composant: `components/landing/locale-switcher.tsx`.
+- Correctif réseau/IP sur le changement de langue:
+  - redirection basée sur `x-forwarded-host` / `x-forwarded-proto` pour éviter les retours forcés vers `localhost`.
+- Navigation publique améliorée:
+  - ajout de l'entrée `Accueil` en première position,
+  - état actif du menu selon la route (`/`, `/projects*`, `/documents*`),
+  - composant dédié: `components/landing/header-nav.tsx`.
+- Accès public ouvert sans authentification:
+  - `/projects`,
+  - `/projects/[id]`.
+
+## Mise à jour récente (Auth & UX)
+
+- Internationalisation des pages d'authentification:
+  - `login` et `signup` branchées sur i18n (`fr`, `en`, `cg`),
+  - formulaires `LoginForm` et `SignupForm` localisés (labels, placeholders, boutons, textes contextuels).
+- Amélioration UX des pages auth:
+  - liens de bascule (`Se connecter` / `Créer un compte`) rendus plus visibles,
+  - titre du bloc formulaire mis en évidence par un badge.
+- Champ mot de passe amélioré:
+  - remplacement du texte `Afficher / Masquer` par une icône oeil/oeil barré,
+  - accessibilité conservée avec labels localisés (`aria-label`, `title`, `sr-only`).
+- Correctif état session dans le header public:
+  - après déconnexion, le dropdown utilisateur n'est plus affiché,
+  - les boutons `Se connecter` et `Créer un compte` apparaissent correctement.
+
+## Mise à jour récente (Profil dashboard, mobile & pilotage)
+
+- Landing page mobile:
+  - ajout d'un menu mobile complet (hamburger) dans le header public,
+  - navigation disponible sur mobile: `Accueil`, `Explorer les projets`, `Documents`,
+  - actions compte dans le menu mobile (dashboard, profil, support, login/signup, logout),
+  - sélecteur de langue intégré au menu mobile (`FR/EN/CG`).
+- Dashboard:
+  - nouvelle page profil complète: `/dashboard/profile`,
+  - formulaire d'édition du profil (nom complet, téléphone, avatar URL) avec validation serveur,
+  - section compte (email, id, dates) et section activité (projets, publiés, besoins ouverts, templates),
+  - nouveau formulaire sécurité pour la mise à jour du mot de passe depuis le dashboard (vérification du mot de passe actuel + validation du nouveau).
+- Navigation:
+  - ajout de l'entrée `Profil` dans le menu dashboard,
+  - liens `Profil` des dropdowns (dashboard et header public connecté) redirigés vers `/dashboard/profile`.
+- Pilotage:
+  - ajout du graphique pie `Publiés: ouverts vs fermés (selon besoins validés)`,
+  - amélioration de l'alignement et de la lisibilité des cartes graphiques (hauteurs homogènes, légendes stabilisées, grille responsive).
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

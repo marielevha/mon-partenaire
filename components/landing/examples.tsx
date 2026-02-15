@@ -5,10 +5,14 @@ import { Container } from "@/components/landing/container";
 import { Section } from "@/components/landing/section";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { getHomeProjectExamples } from "@/src/lib/projects";
+import { getI18n } from "@/src/i18n";
 
 const FALLBACK_IMAGES = ["/landing/project-1.svg", "/landing/project-2.svg", "/landing/project-3.svg"];
 
 export async function Examples() {
+  const messages = await getI18n();
+  const t = messages.landing.examples;
+
   // Selection logic:
   // 1) Prioritize published/public projects with at least one open need (non-clotures).
   // 2) Complete with the most recent published/public projects if needed, up to 3 cards.
@@ -19,13 +23,13 @@ export async function Examples() {
       <Container>
         <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-accent">Exemples de projets</p>
+            <p className="text-sm font-semibold text-accent">{t.eyebrow}</p>
             <h2 className="mt-2 text-3xl font-semibold text-text-primary">
-              Des projets concrets, des besoins précis.
+              {t.title}
             </h2>
           </div>
           <Link href="/projects" className={buttonVariants({ variant: "secondary" })}>
-            Voir tout
+            {t.viewAll}
           </Link>
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
@@ -50,7 +54,7 @@ export async function Examples() {
           })}
           {projectExamples.length === 0 ? (
             <Card className="col-span-full border-border/60 bg-surface/90 p-6 text-sm text-text-secondary">
-              Aucun projet publié disponible pour le moment.
+              {t.noProjects}
             </Card>
           ) : null}
         </div>
