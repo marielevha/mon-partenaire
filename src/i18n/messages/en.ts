@@ -13,6 +13,8 @@ export const enMessages = {
     logout: "Sign out",
     login: "Sign in",
     signup: "Create account",
+    mobileMenuOpen: "Open menu",
+    mobileMenuClose: "Close menu",
   },
   locale: {
     label: "Language",
@@ -119,6 +121,43 @@ export const enMessages = {
       title: "Concrete projects, precise needs.",
       viewAll: "View all",
       noProjects: "No published project available yet.",
+    },
+    testimonials: {
+      eyebrow: "Testimonials",
+      title: "What our users say",
+      description:
+        "Field feedback from project owners and partners using Mon partenaire to structure collaborations.",
+      prevLabel: "Previous testimonial",
+      nextLabel: "Next testimonial",
+      items: [
+        {
+          name: "Nadia M.",
+          role: "Agri project owner",
+          quote:
+            "The platform helped me clarify my needs and find a complementary partner within a few weeks.",
+          project: "Cassava processing",
+          city: "Brazzaville",
+          rating: 5,
+        },
+        {
+          name: "Patrick K.",
+          role: "Private investor",
+          quote:
+            "I valued the transparency on contributions and equity split. Project files are easier to evaluate.",
+          project: "Poultry farming",
+          city: "Pointe-Noire",
+          rating: 5,
+        },
+        {
+          name: "Aline T.",
+          role: "Operational partner",
+          quote:
+            "The partnership framing reduced misunderstandings from day one. We move faster and with confidence.",
+          project: "Local e-commerce",
+          city: "Dolisie",
+          rating: 4,
+        },
+      ],
     },
     trust: {
       eyebrow: "Trust & framework",

@@ -13,6 +13,8 @@ export const frMessages = {
     logout: "Se déconnecter",
     login: "Se connecter",
     signup: "Créer un compte",
+    mobileMenuOpen: "Ouvrir le menu",
+    mobileMenuClose: "Fermer le menu",
   },
   locale: {
     label: "Langue",
@@ -119,6 +121,43 @@ export const frMessages = {
       title: "Des projets concrets, des besoins précis.",
       viewAll: "Voir tout",
       noProjects: "Aucun projet publié disponible pour le moment.",
+    },
+    testimonials: {
+      eyebrow: "Témoignages",
+      title: "Ce que disent nos utilisateurs",
+      description:
+        "Des retours terrain de porteurs et partenaires qui utilisent Mon partenaire pour structurer leurs collaborations.",
+      prevLabel: "Témoignage précédent",
+      nextLabel: "Témoignage suivant",
+      items: [
+        {
+          name: "Nadia M.",
+          role: "Porteuse de projet agro",
+          quote:
+            "La plateforme m'a aidée à clarifier mes besoins et à trouver un associé complémentaire en quelques semaines.",
+          project: "Transformation de manioc",
+          city: "Brazzaville",
+          rating: 5,
+        },
+        {
+          name: "Patrick K.",
+          role: "Investisseur privé",
+          quote:
+            "J'ai apprécié la transparence sur les apports et la répartition des parts. Les dossiers sont plus faciles à analyser.",
+          project: "Élevage de volailles",
+          city: "Pointe-Noire",
+          rating: 5,
+        },
+        {
+          name: "Aline T.",
+          role: "Partenaire opérationnelle",
+          quote:
+            "Le cadrage du partenariat a réduit les malentendus dès le départ. On avance plus vite et avec confiance.",
+          project: "E-commerce local",
+          city: "Dolisie",
+          rating: 4,
+        },
+      ],
     },
     trust: {
       eyebrow: "Confiance & cadre",

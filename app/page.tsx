@@ -6,6 +6,7 @@ import { Footer } from "@/components/landing/footer";
 import { Header } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
 import { Steps } from "@/components/landing/steps";
+import { Testimonials } from "@/components/landing/testimonials";
 import { Trust } from "@/components/landing/trust";
 
 export default function Home() {
@@ -33,6 +34,7 @@ export default function Home() {
         <Steps />
         <Audience />
         <Examples />
+        <Testimonials />
         <Trust />
         <CtaFinal />
         <Faq />

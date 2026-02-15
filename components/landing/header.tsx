@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HeaderClient } from "@/components/landing/header-client";
 import { HeaderNav } from "@/components/landing/header-nav";
 import { LocaleSwitcher } from "@/components/landing/locale-switcher";
+import { MobileHeaderMenu } from "@/components/landing/mobile-header-menu";
 import { getSessionAction } from "@/app/auth/actions";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import { getCurrentLocale, getI18n } from "@/src/i18n";
@@ -53,28 +54,57 @@ export async function Header() {
         />
 
         <div className="flex items-center justify-end gap-3">
-          <LocaleSwitcher
-            locale={locale}
-            label={messages.locale.label}
-            frLabel={messages.locale.fr}
-            enLabel={messages.locale.en}
-            cgLabel={messages.locale.cg}
-          />
-          <ThemeToggle />
-          <HeaderClient
-            initialSession={session}
-            initialFullName={fullName}
-            labels={{
-              accountFallback: headerMessages.accountFallback,
-              connectedAccount: headerMessages.connectedAccount,
-              dashboard: headerMessages.menuDashboard,
-              profile: headerMessages.menuProfile,
-              support: headerMessages.menuSupport,
-              logout: headerMessages.logout,
-              login: headerMessages.login,
-              signup: headerMessages.signup,
-            }}
-          />
+          <div className="hidden items-center gap-3 md:flex">
+            <LocaleSwitcher
+              locale={locale}
+              label={messages.locale.label}
+              frLabel={messages.locale.fr}
+              enLabel={messages.locale.en}
+              cgLabel={messages.locale.cg}
+            />
+            <ThemeToggle />
+            <HeaderClient
+              initialSession={session}
+              initialFullName={fullName}
+              labels={{
+                accountFallback: headerMessages.accountFallback,
+                connectedAccount: headerMessages.connectedAccount,
+                dashboard: headerMessages.menuDashboard,
+                profile: headerMessages.menuProfile,
+                support: headerMessages.menuSupport,
+                logout: headerMessages.logout,
+                login: headerMessages.login,
+                signup: headerMessages.signup,
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle />
+            <MobileHeaderMenu
+              locale={locale}
+              initialSession={session}
+              initialFullName={fullName}
+              labels={{
+                home: headerMessages.navHome,
+                projects: headerMessages.navProjects,
+                documents: headerMessages.navDocuments,
+                accountFallback: headerMessages.accountFallback,
+                connectedAccount: headerMessages.connectedAccount,
+                dashboard: headerMessages.menuDashboard,
+                profile: headerMessages.menuProfile,
+                support: headerMessages.menuSupport,
+                logout: headerMessages.logout,
+                login: headerMessages.login,
+                signup: headerMessages.signup,
+                menuOpen: headerMessages.mobileMenuOpen,
+                menuClose: headerMessages.mobileMenuClose,
+                localeLabel: messages.locale.label,
+                frLabel: messages.locale.fr,
+                enLabel: messages.locale.en,
+                cgLabel: messages.locale.cg,
+              }}
+            />
+          </div>
         </div>
       </Container>
     </header>

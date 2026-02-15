@@ -158,7 +158,7 @@ export function HeaderClient({
                   {labels.dashboard}
                 </Link>
                 <Link
-                  href="/a-propos"
+                  href="/dashboard/profile"
                   onClick={closeMenu}
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-text-primary transition-colors hover:bg-surface-accent"
                 >

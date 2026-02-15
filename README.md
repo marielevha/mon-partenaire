@@ -208,6 +208,25 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - après déconnexion, le dropdown utilisateur n'est plus affiché,
   - les boutons `Se connecter` et `Créer un compte` apparaissent correctement.
 
+## Mise à jour récente (Profil dashboard, mobile & pilotage)
+
+- Landing page mobile:
+  - ajout d'un menu mobile complet (hamburger) dans le header public,
+  - navigation disponible sur mobile: `Accueil`, `Explorer les projets`, `Documents`,
+  - actions compte dans le menu mobile (dashboard, profil, support, login/signup, logout),
+  - sélecteur de langue intégré au menu mobile (`FR/EN/CG`).
+- Dashboard:
+  - nouvelle page profil complète: `/dashboard/profile`,
+  - formulaire d'édition du profil (nom complet, téléphone, avatar URL) avec validation serveur,
+  - section compte (email, id, dates) et section activité (projets, publiés, besoins ouverts, templates),
+  - nouveau formulaire sécurité pour la mise à jour du mot de passe depuis le dashboard (vérification du mot de passe actuel + validation du nouveau).
+- Navigation:
+  - ajout de l'entrée `Profil` dans le menu dashboard,
+  - liens `Profil` des dropdowns (dashboard et header public connecté) redirigés vers `/dashboard/profile`.
+- Pilotage:
+  - ajout du graphique pie `Publiés: ouverts vs fermés (selon besoins validés)`,
+  - amélioration de l'alignement et de la lisibilité des cartes graphiques (hauteurs homogènes, légendes stabilisées, grille responsive).
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.

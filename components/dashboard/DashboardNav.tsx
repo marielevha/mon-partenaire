@@ -22,6 +22,20 @@ const navItems = [
     isActive: (pathname: string) => normalizePathname(pathname) === "/dashboard",
   },
   {
+    href: "/dashboard/profile",
+    label: "Profil",
+    isActive: (pathname: string) =>
+      normalizePathname(pathname) === "/dashboard/profile" ||
+      normalizePathname(pathname).startsWith("/dashboard/profile/"),
+  },
+  {
+    href: "/dashboard/pilotage",
+    label: "Pilotage",
+    isActive: (pathname: string) =>
+      normalizePathname(pathname) === "/dashboard/pilotage" ||
+      normalizePathname(pathname).startsWith("/dashboard/pilotage/"),
+  },
+  {
     href: "/dashboard/projects",
     label: "Mes projets",
     isActive: (pathname: string) =>

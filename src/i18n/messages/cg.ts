@@ -13,6 +13,8 @@ export const cgMessages = {
     logout: "Kobima",
     login: "Kokota",
     signup: "Kosala compte",
+    mobileMenuOpen: "Fungola menu",
+    mobileMenuClose: "Kanga menu",
   },
   locale: {
     ...frMessages.locale,
@@ -94,6 +96,15 @@ export const cgMessages = {
       title: "Ba projets ya solo, besoins ya polele.",
       viewAll: "Tala nyonso",
       noProjects: "Projet publie ezali nanu te.",
+    },
+    testimonials: {
+      ...frMessages.landing.testimonials,
+      eyebrow: "Batatoli",
+      title: "Oyo basaleli balobi",
+      description:
+        "Ba retours ya solo ya ba porteurs mpe ba partenaires oyo basalelaka Mon partenaire mpo na kobongisa boyokani.",
+      prevLabel: "Temoignage ya liboso",
+      nextLabel: "Temoignage oyo elandi",
     },
     trust: {
       ...frMessages.landing.trust,
