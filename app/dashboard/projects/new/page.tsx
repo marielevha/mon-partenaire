@@ -38,7 +38,7 @@ export default async function DashboardCreateProjectPage({
           <span>/</span>
           <span className="dashboard-muted">Nouveau projet</span>
         </div>
-        <h1 className="text-3xl font-semibold">Créer un projet complet</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Créer un projet complet</h1>
         <p className="dashboard-faint mt-2 max-w-3xl text-sm">
           Renseignez les informations clés de votre projet. Il sera créé en brouillon,
           puis vous pourrez l&apos;activer depuis la vue d&apos;ensemble.

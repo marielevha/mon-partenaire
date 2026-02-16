@@ -198,7 +198,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
         <div className="dashboard-panel rounded-2xl p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-accent">Vue d&apos;ensemble</p>
-          <h1 className="mt-3 text-3xl font-semibold">Pilotage des projets</h1>
+          <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">Pilotage des projets</h1>
           <p className="dashboard-faint mt-3 max-w-2xl text-sm">
             Espace autonome d&apos;administration pour suivre vos projets, publier vos annonces
             et surveiller la progression des besoins.
@@ -215,7 +215,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <div className="dashboard-panel rounded-2xl p-6">
           <p className="dashboard-muted text-sm font-medium">Capital cumulé visé</p>
-          <p className="mt-3 text-3xl font-semibold text-accent">{formatMoney(totalCapital)}</p>
+          <p className="mt-3 text-2xl font-semibold sm:text-3xl text-accent">{formatMoney(totalCapital)}</p>
           <div className="dashboard-faint mt-6 grid gap-3 text-sm">
             <div className="flex items-center justify-between">
               <span>Projets publiés</span>

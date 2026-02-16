@@ -7,6 +7,8 @@ import {
   fetchProjectDocumentObject,
   resolveS3ObjectKey,
 } from "@/src/lib/s3-storage";
+import { buildApiLogContext } from "@/src/lib/logging/http";
+import { createLogger } from "@/src/lib/logging/logger";
 
 type RouteParams = {
   slug?: string;
@@ -75,6 +77,10 @@ export async function GET(
   request: Request,
   context: { params: Promise<RouteParams> | RouteParams }
 ) {
+  const logContext = buildApiLogContext(request, {
+    route: "/api/document-templates/[slug]",
+  });
+  const routeLogger = createLogger(logContext);
   const requestUrl = new URL(request.url);
   const previewMode =
     requestUrl.searchParams.get("preview") === "1" ||
@@ -83,6 +89,7 @@ export async function GET(
   const slug = resolvedParams.slug ?? "";
 
   if (!slug) {
+    routeLogger.warn("Document template download failed: missing slug");
     return new Response("Modele introuvable.", { status: 400 });
   }
 
@@ -110,6 +117,7 @@ export async function GET(
     `;
     record = rows[0] ?? null;
   } catch {
+    routeLogger.error("Document template query failed", { slug });
     record = null;
   }
 
@@ -146,6 +154,10 @@ export async function GET(
           headers,
         });
       } catch {
+        routeLogger.warn("Attached template document missing in storage", {
+          slug,
+          objectKey,
+        });
         return new Response("Document joint introuvable.", { status: 404 });
       }
     }
@@ -153,6 +165,7 @@ export async function GET(
 
   const template = record ? mapDocumentTemplateRecord(record) : getDocumentTemplateBySlug(slug);
   if (!template) {
+    routeLogger.warn("Template download failed: template not found", { slug });
     return new Response("Modele introuvable.", { status: 404 });
   }
 

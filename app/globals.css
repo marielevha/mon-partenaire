@@ -147,6 +147,26 @@
     background: var(--dashboard-sidebar);
   }
 
+  @media (min-width: 1280px) {
+    .dashboard-shell .dashboard-sidebar {
+      transition: transform var(--transition-base), opacity var(--transition-base);
+    }
+
+    .dashboard-shell .dashboard-content {
+      transition: padding-left var(--transition-base);
+    }
+
+    .dashboard-shell.sidebar-collapsed .dashboard-sidebar {
+      transform: translateX(-100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .dashboard-shell.sidebar-collapsed .dashboard-content {
+      padding-left: 0;
+    }
+  }
+
   .dashboard-topbar {
     border-color: var(--dashboard-border);
     background: var(--dashboard-topbar);

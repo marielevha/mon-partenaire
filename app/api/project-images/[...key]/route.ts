@@ -1,17 +1,22 @@
 import { fetchProjectImageObject } from "@/src/lib/s3-storage";
+import { buildApiLogContext } from "@/src/lib/logging/http";
+import { createLogger } from "@/src/lib/logging/logger";
 
 type RouteParams = {
   key?: string[];
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<RouteParams> | RouteParams }
 ) {
+  const logContext = buildApiLogContext(request, { route: "/api/project-images/[...key]" });
+  const routeLogger = createLogger(logContext);
   const resolvedParams = await context.params;
   const keySegments = resolvedParams.key ?? [];
 
   if (keySegments.length === 0) {
+    routeLogger.warn("Project image fetch failed: missing object key");
     return new Response("Image key manquante.", { status: 400 });
   }
 
@@ -39,6 +44,7 @@ export async function GET(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Image introuvable.";
+    routeLogger.warn("Project image fetch failed", { objectKey, error });
     return new Response(message, { status: 404 });
   }
 }

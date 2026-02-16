@@ -184,7 +184,7 @@ export default async function DashboardProjectsPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-accent">Dashboard</p>
-            <h1 className="mt-3 text-3xl font-semibold">Mes projets</h1>
+            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">Mes projets</h1>
             <p className="dashboard-faint mt-2 max-w-2xl text-sm">
               Gérez l&apos;ensemble de vos projets, suivez leur progression et mettez
               à jour les statuts.

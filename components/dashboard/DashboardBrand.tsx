@@ -35,7 +35,7 @@ export function DashboardBrand({ compact = false, className }: DashboardBrandPro
         </svg>
       </span>
 
-      <span className="min-w-0">
+      <span className={cn("min-w-0", compact && "max-[420px]:hidden")}>
         {!compact ? (
           <span className="dashboard-faint block text-[11px] uppercase tracking-[0.22em]">
             Mon partenaire

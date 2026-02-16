@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { getServerActionLogger } from "@/src/lib/logging/server-action";
 
 type ProfileField = "fullName" | "phone" | "avatarUrl";
 type PasswordField = "currentPassword" | "newPassword" | "confirmPassword";
@@ -51,21 +52,53 @@ function isHttpUrl(value: string) {
   }
 }
 
+type UpdateFieldChange = {
+  column: string;
+  oldValue: unknown;
+  newValue: unknown;
+};
+
+function sameValue(left: unknown, right: unknown) {
+  return (left ?? null) === (right ?? null);
+}
+
+function appendFieldChange(
+  changes: UpdateFieldChange[],
+  column: string,
+  oldValue: unknown,
+  newValue: unknown
+) {
+  if (sameValue(oldValue, newValue)) {
+    return;
+  }
+
+  changes.push({
+    column,
+    oldValue: oldValue ?? null,
+    newValue: newValue ?? null,
+  });
+}
+
 export async function updateDashboardProfileAction(
   _prevState: ProfileUpdateState,
   formData: FormData
 ): Promise<ProfileUpdateState> {
+  const actionLogger = await getServerActionLogger("dashboard.profile.update");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger
+      .child({ userId: "anonymous" })
+      .warn("Profile update rejected: invalid session");
     return {
       ok: false,
       message: "Session invalide. Veuillez vous reconnecter.",
     };
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const fullName = getValue(formData, "fullName");
   const phone = getValue(formData, "phone");
@@ -92,6 +125,9 @@ export async function updateDashboardProfileAction(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
+    userLogger.warn("Profile update validation failed", {
+      fields: Object.keys(fieldErrors),
+    });
     return {
       ok: false,
       message: "Le formulaire contient des erreurs.",
@@ -107,11 +143,26 @@ export async function updateDashboardProfileAction(
     updated_at: new Date().toISOString(),
   };
 
+  const { data: previousProfile, error: previousProfileError } = await supabase
+    .from("profiles")
+    .select("full_name, phone, avatar_url")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (previousProfileError) {
+    userLogger.warn("Unable to fetch existing profile before update", {
+      errorMessage: previousProfileError.message,
+    });
+  }
+
   const { error: profileError } = await supabase
     .from("profiles")
     .upsert(profilePayload, { onConflict: "id" });
 
   if (profileError) {
+    userLogger.error("Profile persistence failed", {
+      errorMessage: profileError.message,
+    });
     return {
       ok: false,
       message: "Impossible de mettre à jour le profil pour le moment.",
@@ -131,6 +182,9 @@ export async function updateDashboardProfileAction(
   revalidatePath("/dashboard/profile");
 
   if (metadataError) {
+    userLogger.warn("Profile metadata sync failed", {
+      errorMessage: metadataError.message,
+    });
     return {
       ok: true,
       message:
@@ -138,6 +192,22 @@ export async function updateDashboardProfileAction(
     };
   }
 
+  const changes: UpdateFieldChange[] = [];
+  appendFieldChange(
+    changes,
+    "full_name",
+    previousProfile?.full_name ?? null,
+    profilePayload.full_name
+  );
+  appendFieldChange(changes, "phone", previousProfile?.phone ?? null, profilePayload.phone);
+  appendFieldChange(
+    changes,
+    "avatar_url",
+    previousProfile?.avatar_url ?? null,
+    profilePayload.avatar_url
+  );
+
+  userLogger.info("Profile updated successfully", { changes });
   return {
     ok: true,
     message: "Profil mis à jour avec succès.",
@@ -148,17 +218,22 @@ export async function updateDashboardPasswordAction(
   _prevState: PasswordUpdateState,
   formData: FormData
 ): Promise<PasswordUpdateState> {
+  const actionLogger = await getServerActionLogger("dashboard.profile.password.update");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger
+      .child({ userId: "anonymous" })
+      .warn("Password update rejected: invalid session");
     return {
       ok: false,
       message: "Session invalide. Veuillez vous reconnecter.",
     };
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const currentPassword = getRawValue(formData, "currentPassword");
   const newPassword = getRawValue(formData, "newPassword");
@@ -192,6 +267,9 @@ export async function updateDashboardPasswordAction(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
+    userLogger.warn("Password update validation failed", {
+      fields: Object.keys(fieldErrors),
+    });
     return {
       ok: false,
       message: "Le formulaire contient des erreurs.",
@@ -200,6 +278,7 @@ export async function updateDashboardPasswordAction(
   }
 
   if (!session.user.email) {
+    userLogger.error("Password update failed: missing email in session");
     return {
       ok: false,
       message:
@@ -213,6 +292,7 @@ export async function updateDashboardPasswordAction(
   });
 
   if (verifyError) {
+    userLogger.warn("Password update rejected: current password invalid");
     return {
       ok: false,
       message: "Le mot de passe actuel est incorrect.",
@@ -227,6 +307,9 @@ export async function updateDashboardPasswordAction(
   });
 
   if (updateError) {
+    userLogger.error("Password update failed", {
+      errorMessage: updateError.message,
+    });
     return {
       ok: false,
       message: "Impossible de mettre à jour le mot de passe pour le moment.",
@@ -235,6 +318,15 @@ export async function updateDashboardPasswordAction(
 
   revalidatePath("/dashboard/profile");
 
+  userLogger.info("Password updated successfully", {
+    changes: [
+      {
+        column: "password",
+        oldValue: "[REDACTED]",
+        newValue: "[REDACTED]",
+      },
+    ],
+  });
   return {
     ok: true,
     message: "Mot de passe mis à jour avec succès.",

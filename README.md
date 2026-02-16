@@ -41,6 +41,56 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+## Logging configurable (YAML/JSON)
+
+Le projet inclut un système de logs structurés (JSON) avec:
+
+- corrélation `requestId` (middleware),
+- redaction des champs sensibles,
+- niveaux (`trace`, `debug`, `info`, `warn`, `error`, `fatal`),
+- sorties console + fichier avec rotation par taille.
+
+Configuration par défaut: `config/logging.yaml`.
+
+Vous pouvez aussi charger un autre fichier via `LOG_CONFIG_PATH` (support `.yaml`, `.yml`, `.json`).
+
+Variables d’override principales:
+
+```bash
+LOG_ENABLED=true
+LOG_LEVEL=info
+LOG_SERVICE_NAME=mon-partenaire
+LOG_ENVIRONMENT=development
+LOG_REQUEST_ID_HEADER=x-request-id
+LOG_REDACT_PATHS=headers.authorization,headers.cookie,payload.password
+
+LOG_CONSOLE_ENABLED=true
+LOG_FILE_ENABLED=false
+LOG_FILE_PATH=./logs/app.log
+LOG_FILE_MAX_SIZE_MB=20
+LOG_FILE_MAX_FILES=10
+```
+
+## Notifications email (projets incohérents)
+
+Le bouton `Notifier` envoie toujours une notification interne dashboard.
+En plus, vous pouvez activer l'email propriétaire via Resend:
+
+```bash
+NOTIFICATION_EMAIL_ENABLED=true
+NOTIFICATION_EMAIL_PROVIDER=resend
+NOTIFICATION_EMAIL_FROM="Mon partenaire <no-reply@votre-domaine.com>"
+NOTIFICATION_EMAIL_REPLY_TO="support@votre-domaine.com" # optionnel
+RESEND_API_KEY=re_xxxxxxxxx
+
+# optionnel: utilisé dans les liens des emails
+APP_BASE_URL=https://votre-domaine.com
+```
+
+Si la config email est absente/invalide, la notification interne reste envoyée et l'échec email est journalisé.
+
+Les fichiers de logs tournants sont ignorés par Git (`logs/`).
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
@@ -226,6 +276,34 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Pilotage:
   - ajout du graphique pie `Publiés: ouverts vs fermés (selon besoins validés)`,
   - amélioration de l'alignement et de la lisibilité des cartes graphiques (hauteurs homogènes, légendes stabilisées, grille responsive).
+
+## Mise à jour récente (Notifications & ergonomie dashboard)
+
+- Qualité projet:
+  - nouvelle page `dashboard/pilotage/incoherences` avec datatable (recherche, pagination, tri par sévérité),
+  - action `Notifier` par projet incohérent.
+- Notifications internes dashboard:
+  - centre de notifications `/dashboard/notifications`,
+  - dropdown notifications en topbar avec badge non-lu,
+  - actions `Marquer lu` / `Tout marquer lu`,
+  - liens directs vers `Modifier le projet` et `Voir détail`.
+- Notification email propriétaire:
+  - envoi d'email en complément de la notification interne lors du clic `Notifier`,
+  - support provider `Resend` via variables d'environnement (`NOTIFICATION_EMAIL_*`, `RESEND_API_KEY`),
+  - fallback robuste: la notification interne reste envoyée même si l'email échoue.
+- Navigation dashboard refondue:
+  - menu structuré par blocs (`Pilotage`, `Projets`, `Documents`, `Compte`),
+  - sections repliables/dépliables (accordion),
+  - icônes sur chaque entrée du menu.
+- Responsive dashboard amélioré:
+  - menu mobile transformé en panneau flottant lisible (overlay, scroll interne, fermeture `X`/extérieur/`Esc`),
+  - topbar et espacements/paddings adaptatifs mobile/tablette/desktop,
+  - dropdowns (`notifications`, `menu utilisateur`) adaptés aux petits écrans,
+  - champs de recherche datatables adaptatifs en largeur.
+- Sidebar desktop:
+  - bouton topbar pour réduire/déployer le menu latéral,
+  - état mémorisé dans le navigateur,
+  - raccourci clavier `Ctrl+B` / `Cmd+B` (hors champs de saisie).
 
 ### Formulaire de contact
 

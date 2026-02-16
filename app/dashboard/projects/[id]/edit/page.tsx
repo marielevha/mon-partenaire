@@ -165,7 +165,7 @@ export default async function DashboardEditProjectPage({
           <span>/</span>
           <span className="dashboard-muted">Modifier le projet</span>
         </div>
-        <h1 className="text-3xl font-semibold">Mettre à jour le projet</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Mettre à jour le projet</h1>
         <p className="dashboard-faint mt-2 max-w-3xl text-sm">
           Ajustez les informations stratégiques, financières et visuelles de votre
           projet. Les nouvelles images ajoutées seront intégrées à la galerie existante.

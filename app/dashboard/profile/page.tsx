@@ -98,7 +98,7 @@ export default async function DashboardProfilePage() {
           <span>/</span>
           <span className="dashboard-muted">Profil</span>
         </div>
-        <h1 className="text-3xl font-semibold">Mon profil</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Mon profil</h1>
         <p className="dashboard-faint mt-2 max-w-3xl text-sm">
           Centralisez vos informations personnelles et vérifiez l&apos;activité de votre
           compte.

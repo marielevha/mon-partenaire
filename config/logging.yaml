@@ -1,0 +1,23 @@
+logging:
+  enabled: true
+  level: info
+  serviceName: mon-partenaire
+  environment: development
+  requestIdHeader: x-request-id
+  redactPaths:
+    - headers.authorization
+    - headers.cookie
+    - user.email
+    - user.phone
+    - payload.password
+    - payload.currentPassword
+    - payload.newPassword
+    - payload.confirmPassword
+  transports:
+    console:
+      enabled: true
+    file:
+      enabled: false
+      path: ./logs/app.log
+      maxSizeMB: 20
+      maxFiles: 50

@@ -7,6 +7,7 @@ import {
   deleteProjectDocumentObjects,
   uploadProjectDocumentObject,
 } from "@/src/lib/s3-storage";
+import { getServerActionLogger } from "@/src/lib/logging/server-action";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 type DocumentTemplateField =
@@ -77,6 +78,12 @@ type CategoryValue = (typeof CATEGORIES)[number];
 type LevelValue = (typeof LEVELS)[number];
 type FileTypeValue = (typeof FILE_TYPES)[number];
 type ObjectiveValue = (typeof OBJECTIVES)[number];
+
+type UpdateFieldChange = {
+  column: string;
+  oldValue: unknown;
+  newValue: unknown;
+};
 
 function getValue(formData: FormData, key: string) {
   const rawValue = formData.get(key);
@@ -172,6 +179,67 @@ function parseSectorTags(rawValue: string) {
   }
 
   return uniqueTags;
+}
+
+function areStringArraysEqual(left: string[] | null, right: string[] | null) {
+  const normalizedLeft = left ?? [];
+  const normalizedRight = right ?? [];
+
+  if (normalizedLeft.length !== normalizedRight.length) {
+    return false;
+  }
+
+  for (let index = 0; index < normalizedLeft.length; index += 1) {
+    if (normalizedLeft[index] !== normalizedRight[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function appendFieldChange(
+  changes: UpdateFieldChange[],
+  column: string,
+  oldValue: unknown,
+  newValue: unknown
+) {
+  const normalizedOld = oldValue ?? null;
+  const normalizedNew = newValue ?? null;
+
+  if (Array.isArray(normalizedOld) || Array.isArray(normalizedNew)) {
+    const oldArray = Array.isArray(normalizedOld)
+      ? (normalizedOld as string[])
+      : normalizedOld === null
+        ? []
+        : [String(normalizedOld)];
+    const newArray = Array.isArray(normalizedNew)
+      ? (normalizedNew as string[])
+      : normalizedNew === null
+        ? []
+        : [String(normalizedNew)];
+
+    if (areStringArraysEqual(oldArray, newArray)) {
+      return;
+    }
+
+    changes.push({
+      column,
+      oldValue: oldArray,
+      newValue: newArray,
+    });
+    return;
+  }
+
+  if (normalizedOld === normalizedNew) {
+    return;
+  }
+
+  changes.push({
+    column,
+    oldValue: normalizedOld,
+    newValue: normalizedNew,
+  });
 }
 
 type ParsedTemplateData = {
@@ -271,20 +339,28 @@ export async function createDocumentTemplateAction(
   _prevState: DocumentTemplateFormState,
   formData: FormData
 ): Promise<DocumentTemplateFormState> {
+  const actionLogger = await getServerActionLogger("dashboard.document-template.create");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger
+      .child({ userId: "anonymous" })
+      .warn("Create document template rejected: invalid session");
     return {
       ok: false,
       message: "Session invalide. Reconnectez-vous.",
     };
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const parsed = parseTemplateForm(formData);
   if (!parsed.data) {
+    userLogger.warn("Create document template validation failed", {
+      fields: Object.keys(parsed.fieldErrors ?? {}),
+    });
     return {
       ok: false,
       message: "Certains champs sont invalides.",
@@ -301,6 +377,9 @@ export async function createDocumentTemplateAction(
       LIMIT 1
     `;
   } catch (error) {
+    userLogger.error("Create document template failed while checking slug", {
+      error,
+    });
     if (isDocumentTemplateAttachmentSchemaError(error)) {
       return {
         ok: false,
@@ -312,6 +391,9 @@ export async function createDocumentTemplateAction(
   }
 
   if (sameSlugRecords.length > 0) {
+    userLogger.warn("Create document template rejected: slug already exists", {
+      slug: parsed.data.slug,
+    });
     return {
       ok: false,
       message: "Impossible d'enregistrer ce slug.",
@@ -327,6 +409,10 @@ export async function createDocumentTemplateAction(
 
   if (attachmentFile) {
     if (!isSupportedAttachmentFile(attachmentFile)) {
+      userLogger.warn("Create document template rejected: unsupported attachment", {
+        fileName: attachmentFile.name,
+        mimeType: attachmentFile.type,
+      });
       return {
         ok: false,
         message: "Le document joint est invalide.",
@@ -338,6 +424,10 @@ export async function createDocumentTemplateAction(
     }
 
     if (attachmentFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      userLogger.warn("Create document template rejected: attachment too large", {
+        fileName: attachmentFile.name,
+        sizeBytes: attachmentFile.size,
+      });
       return {
         ok: false,
         message: "Le document joint est trop volumineux.",
@@ -369,6 +459,9 @@ export async function createDocumentTemplateAction(
       attachedDocumentMimeType = attachmentFile.type || null;
       attachedDocumentSizeBytes = attachmentFile.size;
     } catch (error) {
+      userLogger.error("Create document template attachment upload failed", {
+        error,
+      });
       const reason = error instanceof Error ? error.message : "Erreur inconnue.";
       return {
         ok: false,
@@ -432,6 +525,9 @@ export async function createDocumentTemplateAction(
     }
 
     if (isDocumentTemplateSlugConflictError(error)) {
+      userLogger.warn("Create document template rejected: slug conflict on insert", {
+        slug: parsed.data.slug,
+      });
       return {
         ok: false,
         message: "Impossible d'enregistrer ce slug.",
@@ -442,6 +538,7 @@ export async function createDocumentTemplateAction(
     }
 
     if (isDocumentTemplateAttachmentSchemaError(error)) {
+      userLogger.warn("Create document template rejected: missing schema columns");
       return {
         ok: false,
         message:
@@ -450,6 +547,9 @@ export async function createDocumentTemplateAction(
     }
 
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    userLogger.error("Create document template failed on insert", {
+      error: reason,
+    });
     return {
       ok: false,
       message:
@@ -465,6 +565,12 @@ export async function createDocumentTemplateAction(
   revalidatePath("/dashboard/projects/new");
   revalidatePath(`/api/document-templates/${parsed.data.slug}`);
 
+  userLogger.info("Document template created", {
+    templateId,
+    slug: parsed.data.slug,
+    hasAttachment: Boolean(attachedDocumentPath),
+  });
+
   return {
     ok: true,
     message: "Template créé avec succès.",
@@ -475,20 +581,28 @@ export async function updateDocumentTemplateAction(
   _prevState: DocumentTemplateFormState,
   formData: FormData
 ): Promise<DocumentTemplateFormState> {
+  const actionLogger = await getServerActionLogger("dashboard.document-template.update");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger
+      .child({ userId: "anonymous" })
+      .warn("Update document template rejected: invalid session");
     return {
       ok: false,
       message: "Session invalide. Reconnectez-vous.",
     };
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const templateId = getValue(formData, "templateId");
   if (!templateId || !isUuid(templateId)) {
+    userLogger.warn("Update document template rejected: invalid template id", {
+      templateId,
+    });
     return {
       ok: false,
       message: "Template introuvable.",
@@ -497,6 +611,10 @@ export async function updateDocumentTemplateAction(
 
   const parsed = parseTemplateForm(formData);
   if (!parsed.data) {
+    userLogger.warn("Update document template validation failed", {
+      templateId,
+      fields: Object.keys(parsed.fieldErrors ?? {}),
+    });
     return {
       ok: false,
       message: "Certains champs sont invalides.",
@@ -511,6 +629,11 @@ export async function updateDocumentTemplateAction(
 
   if (attachmentFile) {
     if (!isSupportedAttachmentFile(attachmentFile)) {
+      userLogger.warn("Update document template rejected: unsupported attachment", {
+        templateId,
+        fileName: attachmentFile.name,
+        mimeType: attachmentFile.type,
+      });
       return {
         ok: false,
         message: "Le document joint est invalide.",
@@ -522,6 +645,11 @@ export async function updateDocumentTemplateAction(
     }
 
     if (attachmentFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      userLogger.warn("Update document template rejected: attachment too large", {
+        templateId,
+        fileName: attachmentFile.name,
+        sizeBytes: attachmentFile.size,
+      });
       return {
         ok: false,
         message: "Le document joint est trop volumineux.",
@@ -534,37 +662,71 @@ export async function updateDocumentTemplateAction(
 
   let templateRecords: Array<{
     id: string;
+    title: string;
     slug: string;
+    summary: string;
+    category: CategoryValue;
+    level: LevelValue;
+    fileType: FileTypeValue;
+    objective: ObjectiveValue;
+    sectorTags: string[];
+    highlight: string;
     attachedDocumentPath: string | null;
     attachedDocumentName: string | null;
     attachedDocumentMimeType: string | null;
     attachedDocumentSizeBytes: number | null;
+    isPublished: boolean;
+    isFeatured: boolean;
   }> = [];
 
   try {
     templateRecords = await prisma.$queryRaw<
       Array<{
         id: string;
+        title: string;
         slug: string;
+        summary: string;
+        category: CategoryValue;
+        level: LevelValue;
+        fileType: FileTypeValue;
+        objective: ObjectiveValue;
+        sectorTags: string[];
+        highlight: string;
         attachedDocumentPath: string | null;
         attachedDocumentName: string | null;
         attachedDocumentMimeType: string | null;
         attachedDocumentSizeBytes: number | null;
+        isPublished: boolean;
+        isFeatured: boolean;
       }>
     >`
       SELECT
         "id",
+        "title",
         "slug",
+        "summary",
+        "category",
+        "level",
+        "fileType",
+        "objective",
+        "sectorTags",
+        "highlight",
         "attachedDocumentPath",
         "attachedDocumentName",
         "attachedDocumentMimeType",
-        "attachedDocumentSizeBytes"
+        "attachedDocumentSizeBytes",
+        "isPublished",
+        "isFeatured"
       FROM "DocumentTemplate"
       WHERE "id" = ${templateId}::uuid
         AND "ownerId" = ${session.user.id}
       LIMIT 1
     `;
   } catch (error) {
+    userLogger.error("Update document template failed while loading record", {
+      templateId,
+      error,
+    });
     if (isDocumentTemplateAttachmentSchemaError(error)) {
       return {
         ok: false,
@@ -578,6 +740,9 @@ export async function updateDocumentTemplateAction(
   const template = templateRecords[0];
 
   if (!template) {
+    userLogger.warn("Update document template rejected: template not found", {
+      templateId,
+    });
     return {
       ok: false,
       message: "Template introuvable ou accès refusé.",
@@ -611,6 +776,10 @@ export async function updateDocumentTemplateAction(
       nextAttachedDocumentMimeType = attachmentFile.type || null;
       nextAttachedDocumentSizeBytes = attachmentFile.size;
     } catch (error) {
+      userLogger.error("Update document template attachment upload failed", {
+        templateId: template.id,
+        error,
+      });
       const reason = error instanceof Error ? error.message : "Erreur inconnue.";
       return {
         ok: false,
@@ -634,6 +803,10 @@ export async function updateDocumentTemplateAction(
     `;
 
     if (sameSlugRecords.length > 0) {
+      userLogger.warn("Update document template rejected: slug already exists", {
+        templateId: template.id,
+        slug: parsed.data.slug,
+      });
       return {
         ok: false,
         message: "Impossible d'enregistrer ce slug.",
@@ -672,6 +845,9 @@ export async function updateDocumentTemplateAction(
     }
 
     if (isDocumentTemplateAttachmentSchemaError(error)) {
+      userLogger.warn("Update document template rejected: missing schema columns", {
+        templateId: template.id,
+      });
       return {
         ok: false,
         message:
@@ -680,6 +856,10 @@ export async function updateDocumentTemplateAction(
     }
 
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
+    userLogger.error("Update document template failed on update", {
+      templateId: template.id,
+      error: reason,
+    });
     return {
       ok: false,
       message:
@@ -703,6 +883,43 @@ export async function updateDocumentTemplateAction(
   revalidatePath("/dashboard/projects/new");
   revalidatePath(`/api/document-templates/${template.slug}`);
   revalidatePath(`/api/document-templates/${parsed.data.slug}`);
+
+  const changes: UpdateFieldChange[] = [];
+  appendFieldChange(changes, "title", template.title, parsed.data.title);
+  appendFieldChange(changes, "slug", template.slug, parsed.data.slug);
+  appendFieldChange(changes, "summary", template.summary, parsed.data.summary);
+  appendFieldChange(changes, "category", template.category, parsed.data.category);
+  appendFieldChange(changes, "level", template.level, parsed.data.level);
+  appendFieldChange(changes, "fileType", template.fileType, parsed.data.fileType);
+  appendFieldChange(changes, "objective", template.objective, parsed.data.objective);
+  appendFieldChange(changes, "sectorTags", template.sectorTags, parsed.data.sectorTags);
+  appendFieldChange(changes, "highlight", template.highlight, parsed.data.highlight);
+  appendFieldChange(changes, "attachedDocumentPath", template.attachedDocumentPath, nextAttachedDocumentPath);
+  appendFieldChange(changes, "attachedDocumentName", template.attachedDocumentName, nextAttachedDocumentName);
+  appendFieldChange(
+    changes,
+    "attachedDocumentMimeType",
+    template.attachedDocumentMimeType,
+    nextAttachedDocumentMimeType
+  );
+  appendFieldChange(
+    changes,
+    "attachedDocumentSizeBytes",
+    template.attachedDocumentSizeBytes,
+    nextAttachedDocumentSizeBytes
+  );
+  appendFieldChange(changes, "isPublished", template.isPublished, parsed.data.isPublished);
+  appendFieldChange(changes, "isFeatured", template.isFeatured, parsed.data.isFeatured);
+
+  userLogger.info("Document template updated", {
+    templateId: template.id,
+    slug: parsed.data.slug,
+    removedAttachment: Boolean(
+      removeAttachedDocument && previousAttachmentPath && !nextAttachedDocumentPath
+    ),
+    hasAttachment: Boolean(nextAttachedDocumentPath),
+    changes,
+  });
 
   return {
     ok: true,

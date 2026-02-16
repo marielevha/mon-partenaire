@@ -195,7 +195,7 @@ export function DocumentTemplatesDataTable({ templates }: DocumentTemplatesDataT
                 setCurrentPage(1);
               }}
               placeholder="Rechercher par titre, résumé ou slug..."
-              className="dashboard-input w-[320px] rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+              className="dashboard-input w-full min-w-0 rounded-lg px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 sm:w-[320px]"
             />
           </label>
 

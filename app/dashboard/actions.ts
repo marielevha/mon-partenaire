@@ -17,6 +17,8 @@ import {
   uploadProjectDocumentObject,
   uploadProjectImageObject,
 } from "@/src/lib/s3-storage";
+import { logger } from "@/src/lib/logging/logger";
+import { getServerActionLogger } from "@/src/lib/logging/server-action";
 
 type ProjectFormSuccess = {
   ok: true;
@@ -168,6 +170,94 @@ type ParseProjectFormOptions = {
   currentImageCount?: number;
   currentDocumentCount?: number;
 };
+
+type UpdateFieldChange = {
+  column: string;
+  oldValue: unknown;
+  newValue: unknown;
+};
+
+type ProjectUpdateSnapshot = {
+  title: string;
+  summary: string;
+  description: string;
+  category: ProjectCategoryValue;
+  city: string;
+  country: string;
+  legalForm: LegalFormValue | null;
+  companyCreated: boolean;
+  totalCapital: number | null;
+  ownerContribution: number | null;
+  ownerEquityPercent: number | null;
+  equityModel: EquityModelValue;
+  equityNote: string | null;
+  visibility: VisibilityValue;
+};
+
+function areStringArraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function normalizeDiffValue(value: unknown) {
+  if (typeof value === "string" && value.length > 220) {
+    return `${value.slice(0, 217)}...`;
+  }
+  return value;
+}
+
+function appendFieldChange(
+  changes: UpdateFieldChange[],
+  column: string,
+  oldValue: unknown,
+  newValue: unknown
+) {
+  const normalizedOld = oldValue ?? null;
+  const normalizedNew = newValue ?? null;
+
+  if (Array.isArray(normalizedOld) || Array.isArray(normalizedNew)) {
+    const oldArray = Array.isArray(normalizedOld)
+      ? (normalizedOld as string[])
+      : normalizedOld === null
+        ? []
+        : [String(normalizedOld)];
+    const newArray = Array.isArray(normalizedNew)
+      ? (normalizedNew as string[])
+      : normalizedNew === null
+        ? []
+        : [String(normalizedNew)];
+
+    if (areStringArraysEqual(oldArray, newArray)) {
+      return;
+    }
+
+    changes.push({
+      column,
+      oldValue: oldArray,
+      newValue: newArray,
+    });
+    return;
+  }
+
+  if (normalizedOld === normalizedNew) {
+    return;
+  }
+
+  changes.push({
+    column,
+    oldValue: normalizeDiffValue(normalizedOld),
+    newValue: normalizeDiffValue(normalizedNew),
+  });
+}
 
 function getValue(formData: FormData, key: string) {
   const rawValue = formData.get(key);
@@ -804,7 +894,8 @@ export async function upsertProjectNeeds(
 
 function mapProjectAssetError(
   error: unknown,
-  context: "image" | "document" | "mixed"
+  context: "image" | "document" | "mixed",
+  userId?: string
 ): ProjectFormError {
   const reason =
     error instanceof Error
@@ -885,7 +976,9 @@ function mapProjectAssetError(
         ? "documents"
         : "fichiers";
 
-  console.error(`Project ${scopeLabel} upload failed:`, reason);
+  logger
+    .child({ userId: userId ?? "unknown" })
+    .error("Project asset upload failed", { scopeLabel, reason });
 
   return {
     ok: false,
@@ -900,20 +993,26 @@ export async function createProjectAction(
   _prevState: ProjectFormState,
   formData: FormData
 ): Promise<ProjectFormState> {
+  const actionLogger = await getServerActionLogger("dashboard.project.create");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger.child({ userId: "anonymous" }).warn("Create project rejected: invalid session");
     return {
       ok: false,
       message: "Session invalide. Reconnectez-vous.",
     };
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const parsed = parseAndValidateProjectForm(formData);
   if (!parsed.data) {
+    userLogger.warn("Create project validation failed", {
+      fields: Object.keys(parsed.fieldErrors ?? {}),
+    });
     return {
       ok: false,
       message: "Certains champs sont invalides.",
@@ -925,6 +1024,7 @@ export async function createProjectAction(
   const canPersistRequiredCount = await hasProjectNeedRequiredCountColumn();
 
   if (input.needs.length > 0 && !canPersistRequiredCount) {
+    userLogger.warn("Create project rejected: requiredCount column missing");
     return {
       ok: false,
       message:
@@ -1001,6 +1101,10 @@ export async function createProjectAction(
       });
     }
   } catch (error) {
+    userLogger.error("Create project transaction failed", {
+      projectId: project.id,
+      error,
+    });
     if (uploadedImageObjectKeys.length > 0) {
       await deleteProjectImageObjects(uploadedImageObjectKeys).catch(() => undefined);
     }
@@ -1040,11 +1144,18 @@ export async function createProjectAction(
             ? "image"
             : "mixed";
 
-    return mapProjectAssetError(error, context);
+    return mapProjectAssetError(error, context, session.user.id);
   }
 
   revalidatePath("/dashboard");
   revalidatePath("/projects");
+
+  userLogger.info("Project created successfully", {
+    projectId: project.id,
+    hasImages: uploadedImageStorageKeys.length > 0,
+    hasDocuments: uploadedDocuments.length > 0,
+    needsCount: input.needs.length,
+  });
 
   return {
     ok: true,
@@ -1071,6 +1182,8 @@ export async function updateProjectAction(
   _prevState: ProjectFormState,
   formData: FormData
 ): Promise<ProjectFormState> {
+  const actionLogger = await getServerActionLogger("dashboard.project.update");
+  let actorUserId: string | null = null;
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -1078,14 +1191,20 @@ export async function updateProjectAction(
     } = await supabase.auth.getSession();
 
     if (!session?.user?.id) {
+      actionLogger
+        .child({ userId: "anonymous" })
+        .warn("Update project rejected: invalid session");
       return {
         ok: false,
         message: "Session invalide. Reconnectez-vous.",
       };
     }
+    actorUserId = session.user.id;
+    const userLogger = actionLogger.child({ userId: session.user.id });
 
     const projectId = getValue(formData, "projectId");
     if (!projectId) {
+      userLogger.warn("Update project rejected: missing projectId");
       return {
         ok: false,
         message: "Projet introuvable.",
@@ -1113,12 +1232,57 @@ export async function updateProjectAction(
     },
   });
 
-  if (!project) {
-    return {
-      ok: false,
-      message: "Projet introuvable ou accès refusé.",
-    };
-  }
+    if (!project) {
+      userLogger.warn("Update project rejected: project not found or forbidden", {
+        projectId,
+      });
+      return {
+        ok: false,
+        message: "Projet introuvable ou accès refusé.",
+      };
+    }
+
+    const snapshotRows = await prisma.$queryRaw<ProjectUpdateSnapshot[]>`
+      SELECT
+        "title",
+        "summary",
+        "description",
+        "category",
+        "city",
+        "country",
+        "legalForm",
+        "companyCreated",
+        "totalCapital",
+        "ownerContribution",
+        "ownerEquityPercent",
+        "equityModel",
+        "equityNote",
+        "visibility"
+      FROM "Project"
+      WHERE "id" = ${project.id}
+      LIMIT 1
+    `;
+
+    const previousProjectSnapshot = snapshotRows[0];
+    if (!previousProjectSnapshot) {
+      userLogger.warn("Update project rejected: project snapshot unavailable", {
+        projectId: project.id,
+      });
+      return {
+        ok: false,
+        message: "Projet introuvable ou accès refusé.",
+      };
+    }
+
+    const previousNeedRows = await prisma.$queryRaw<Array<{ needsCount: unknown }>>`
+      SELECT COUNT(*) AS "needsCount"
+      FROM "ProjectNeed"
+      WHERE "projectId" = ${project.id}
+    `;
+    const previousNeedsCount = Number.parseInt(
+      String(previousNeedRows[0]?.needsCount ?? "0"),
+      10
+    );
 
   let hasProjectDocumentTable = true;
   let existingDocuments: ProjectDocumentStorageRecord[] = [];
@@ -1140,6 +1304,10 @@ export async function updateProjectAction(
   }
 
   if (existingDocumentsQueryError) {
+    userLogger.error("Update project failed while loading existing documents", {
+      projectId: project.id,
+      error: existingDocumentsQueryError,
+    });
     const reason =
       existingDocumentsQueryError instanceof Error
         ? existingDocumentsQueryError.message
@@ -1183,6 +1351,10 @@ export async function updateProjectAction(
   });
 
   if (!parsed.data) {
+    userLogger.warn("Update project validation failed", {
+      projectId: project.id,
+      fields: Object.keys(parsed.fieldErrors ?? {}),
+    });
     return {
       ok: false,
       message: "Certains champs sont invalides.",
@@ -1241,6 +1413,10 @@ export async function updateProjectAction(
       uploadedDocuments = documentUploadResult.uploadedDocuments;
     }
   } catch (error) {
+    userLogger.error("Update project asset upload failed", {
+      projectId: project.id,
+      error,
+    });
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
     if (
       input.needs.length > 0 &&
@@ -1266,7 +1442,7 @@ export async function updateProjectAction(
             ? "image"
             : "mixed";
 
-    return mapProjectAssetError(error, context);
+    return mapProjectAssetError(error, context, session.user.id);
   }
 
   try {
@@ -1335,6 +1511,10 @@ export async function updateProjectAction(
       await upsertProjectNeeds(tx, project.id, input.needs);
     });
   } catch (error) {
+    userLogger.error("Update project transaction failed", {
+      projectId: project.id,
+      error,
+    });
     if (uploadedImageObjectKeys.length > 0) {
       await deleteProjectImageObjects(uploadedImageObjectKeys).catch(() => undefined);
     }
@@ -1351,7 +1531,7 @@ export async function updateProjectAction(
           : "image";
 
     if (uploadedImageStorageKeys.length > 0 || uploadedDocuments.length > 0) {
-      return mapProjectAssetError(error, context);
+      return mapProjectAssetError(error, context, session.user.id);
     }
 
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
@@ -1370,7 +1550,7 @@ export async function updateProjectAction(
       };
     }
 
-    console.error("Project update failed:", reason);
+    userLogger.error("Project update failed", { reason, projectId: project.id });
     return {
       ok: false,
       message:
@@ -1384,7 +1564,10 @@ export async function updateProjectAction(
     await deleteProjectImageObjects(removableImages.map((image) => image.storagePath)).catch(
       (error) => {
         const reason = error instanceof Error ? error.message : "Erreur inconnue.";
-        console.error("Failed to delete removed project images from storage:", reason);
+        userLogger.error("Failed to delete removed project images from storage", {
+          reason,
+          projectId: project.id,
+        });
       }
     );
   }
@@ -1394,7 +1577,10 @@ export async function updateProjectAction(
       removableDocuments.map((document) => document.storagePath)
     ).catch((error) => {
       const reason = error instanceof Error ? error.message : "Erreur inconnue.";
-      console.error("Failed to delete removed project documents from storage:", reason);
+      userLogger.error("Failed to delete removed project documents from storage", {
+        reason,
+        projectId: project.id,
+      });
     });
   }
 
@@ -1403,6 +1589,68 @@ export async function updateProjectAction(
   revalidatePath(`/projects/${project.id}`);
   revalidatePath("/projects");
 
+    const changes: UpdateFieldChange[] = [];
+    appendFieldChange(changes, "title", previousProjectSnapshot.title, input.title);
+    appendFieldChange(changes, "summary", previousProjectSnapshot.summary, input.summary);
+    appendFieldChange(
+      changes,
+      "description",
+      previousProjectSnapshot.description,
+      input.description
+    );
+    appendFieldChange(changes, "category", previousProjectSnapshot.category, input.category);
+    appendFieldChange(changes, "city", previousProjectSnapshot.city, input.city);
+    appendFieldChange(changes, "country", previousProjectSnapshot.country, input.country);
+    appendFieldChange(changes, "legalForm", previousProjectSnapshot.legalForm, input.legalForm);
+    appendFieldChange(
+      changes,
+      "companyCreated",
+      previousProjectSnapshot.companyCreated,
+      input.companyCreated
+    );
+    appendFieldChange(
+      changes,
+      "totalCapital",
+      previousProjectSnapshot.totalCapital,
+      input.totalCapital
+    );
+    appendFieldChange(
+      changes,
+      "ownerContribution",
+      previousProjectSnapshot.ownerContribution,
+      input.ownerContribution
+    );
+    appendFieldChange(
+      changes,
+      "ownerEquityPercent",
+      previousProjectSnapshot.ownerEquityPercent,
+      input.ownerEquityPercent
+    );
+    appendFieldChange(
+      changes,
+      "equityModel",
+      previousProjectSnapshot.equityModel,
+      input.equityModel
+    );
+    appendFieldChange(changes, "equityNote", previousProjectSnapshot.equityNote, input.equityNote);
+    appendFieldChange(
+      changes,
+      "visibility",
+      previousProjectSnapshot.visibility,
+      input.visibility
+    );
+    appendFieldChange(changes, "needsCount", previousNeedsCount, input.needs.length);
+
+    userLogger.info("Project updated successfully", {
+      projectId: project.id,
+      removedImages: removableImages.length,
+      removedDocuments: removableDocuments.length,
+      addedImages: uploadedImageStorageKeys.length,
+      addedDocuments: uploadedDocuments.length,
+      needsCount: input.needs.length,
+      changes,
+    });
+
     return {
       ok: true,
       message: "Projet mis à jour avec succès.",
@@ -1410,7 +1658,9 @@ export async function updateProjectAction(
     };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Erreur inconnue.";
-    console.error("Unexpected project update server action failure:", reason);
+    actionLogger
+      .child({ userId: actorUserId ?? "unknown" })
+      .error("Unexpected project update server action failure", { reason });
 
     return {
       ok: false,
@@ -1423,23 +1673,46 @@ export async function updateProjectAction(
 }
 
 export async function updateProjectStatusAction(formData: FormData) {
+  const actionLogger = await getServerActionLogger("dashboard.project.status.update");
   const supabase = await createSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.user?.id) {
+    actionLogger
+      .child({ userId: "anonymous" })
+      .warn("Update project status rejected: invalid session");
     return;
   }
+  const userLogger = actionLogger.child({ userId: session.user.id });
 
   const projectId = getValue(formData, "projectId");
   const status = getValue(formData, "status");
 
   if (!projectId) {
+    userLogger.warn("Update project status rejected: missing projectId");
     return;
   }
 
   if (!PROJECT_STATUSES.includes(status as (typeof PROJECT_STATUSES)[number])) {
+    userLogger.warn("Update project status rejected: invalid status", { status, projectId });
+    return;
+  }
+
+  const previousStatusRow = await prisma.$queryRaw<Array<{ status: string }>>`
+    SELECT "status"
+    FROM "Project"
+    WHERE "id" = ${projectId}
+      AND "ownerId" = ${session.user.id}
+    LIMIT 1
+  `;
+  const previousStatus = previousStatusRow[0]?.status;
+
+  if (!previousStatus) {
+    userLogger.warn("Update project status rejected: project not found or forbidden", {
+      projectId,
+    });
     return;
   }
 
@@ -1477,9 +1750,10 @@ export async function updateProjectStatusAction(formData: FormData) {
     const totalAllocatedShare = ownerSharePercent + needsSharePercent;
 
     if (totalAllocatedShare !== 100) {
-      console.warn(
-        `Project ${projectId} cannot be archived: equity allocation is ${totalAllocatedShare}% (expected 100%).`
-      );
+      userLogger.warn("Archive rejected due to invalid allocation", {
+        projectId,
+        totalAllocatedShare,
+      });
       return;
     }
   }
@@ -1497,4 +1771,16 @@ export async function updateProjectStatusAction(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
+
+  userLogger.info("Project status updated", {
+    projectId,
+    status,
+    changes: [
+      {
+        column: "status",
+        oldValue: previousStatus,
+        newValue: status,
+      },
+    ],
+  });
 }

@@ -92,7 +92,7 @@ export default async function DashboardDocumentTemplatesPage() {
         </div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold">Templates de documents</h1>
+            <h1 className="text-2xl font-semibold sm:text-3xl">Templates de documents</h1>
             <p className="dashboard-faint mt-2 max-w-3xl text-sm">
               Consultez les modèles que vous avez créés et suivez leur statut de
               publication.

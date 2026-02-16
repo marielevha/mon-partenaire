@@ -1,4 +1,6 @@
 import { fetchProjectDocumentObject } from "@/src/lib/s3-storage";
+import { buildApiLogContext } from "@/src/lib/logging/http";
+import { createLogger } from "@/src/lib/logging/logger";
 
 type RouteParams = {
   key?: string[];
@@ -12,6 +14,10 @@ export async function GET(
   request: Request,
   context: { params: Promise<RouteParams> | RouteParams }
 ) {
+  const logContext = buildApiLogContext(request, {
+    route: "/api/project-documents/[...key]",
+  });
+  const routeLogger = createLogger(logContext);
   const requestUrl = new URL(request.url);
   const previewMode =
     requestUrl.searchParams.get("preview") === "1" ||
@@ -20,6 +26,7 @@ export async function GET(
   const keySegments = resolvedParams.key ?? [];
 
   if (keySegments.length === 0) {
+    routeLogger.warn("Project document fetch failed: missing object key");
     return new Response("Document key manquante.", { status: 400 });
   }
 
@@ -59,6 +66,7 @@ export async function GET(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Document introuvable.";
+    routeLogger.warn("Project document fetch failed", { objectKey, previewMode, error });
     return new Response(message, { status: 404 });
   }
 }

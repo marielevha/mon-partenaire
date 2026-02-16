@@ -73,7 +73,7 @@ export function DashboardTopbarUserMenu({
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
-          "inline-flex items-center gap-3 rounded-full py-1.5 pl-1.5 pr-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45",
+          "inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 sm:gap-3 sm:pr-3",
           isDark
             ? "border border-slate-700/80 bg-slate-900/70 text-slate-100 hover:border-slate-600"
             : "border border-slate-300 bg-white text-slate-900 hover:border-slate-400"
@@ -88,7 +88,7 @@ export function DashboardTopbarUserMenu({
             )}
           />
         </span>
-        <span className="max-w-[130px] truncate text-sm font-medium">
+        <span className="hidden max-w-[130px] truncate text-sm font-medium sm:inline">
           {fullName}
         </span>
         <svg
@@ -111,7 +111,7 @@ export function DashboardTopbarUserMenu({
         <div
           role="menu"
           className={cn(
-            "absolute right-0 z-50 mt-3 w-[300px] overflow-hidden rounded-2xl",
+            "absolute right-0 z-50 mt-3 w-[min(92vw,300px)] overflow-hidden rounded-2xl",
             isDark
               ? "border border-slate-700/80 bg-[#0f1b34] shadow-[0_28px_60px_rgba(2,8,23,0.5)]"
               : "border border-slate-200 bg-white shadow-[0_28px_60px_rgba(2,8,23,0.16)]"

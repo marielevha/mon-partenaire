@@ -4,6 +4,8 @@ import {
   SUPPORTED_LOCALES,
   isSupportedLocale,
 } from "@/src/i18n";
+import { buildApiLogContext } from "@/src/lib/logging/http";
+import { createLogger } from "@/src/lib/logging/logger";
 
 function sanitizeNextPath(nextPath: string | null): string {
   if (!nextPath) {
@@ -28,11 +30,17 @@ function buildRequestOrigin(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
+  const context = buildApiLogContext(request, { route: "/api/locale" });
+  const routeLogger = createLogger(context);
   const localeParam = request.nextUrl.searchParams.get("locale");
   const nextPathParam = request.nextUrl.searchParams.get("next");
   const locale = localeParam?.toLowerCase() ?? "";
 
   if (!isSupportedLocale(locale)) {
+    routeLogger.warn("Locale switch rejected: unsupported locale", {
+      locale,
+      allowedLocales: SUPPORTED_LOCALES,
+    });
     return NextResponse.json(
       {
         message: `Unsupported locale. Allowed values: ${SUPPORTED_LOCALES.join(", ")}`,
@@ -52,6 +60,11 @@ export async function GET(request: NextRequest) {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
+  });
+
+  routeLogger.info("Locale switched successfully", {
+    locale,
+    targetPath: targetPath,
   });
 
   return response;

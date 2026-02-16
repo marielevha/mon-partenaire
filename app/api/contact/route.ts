@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { buildApiLogContext } from "@/src/lib/logging/http";
+import { createLogger } from "@/src/lib/logging/logger";
 
 type ContactPayload = {
   name: string;
@@ -61,11 +63,17 @@ function isValidPayload(payload: unknown): payload is ContactPayload {
 }
 
 export async function POST(request: Request) {
+  const context = buildApiLogContext(request, { route: "/api/contact" });
+  const routeLogger = createLogger(context);
   const clientIp = getClientIp(request);
   const now = Date.now();
   const lastRequest = lastRequestByIp.get(clientIp);
 
   if (lastRequest && now - lastRequest < rateLimitWindowMs) {
+    routeLogger.warn("Contact endpoint rate-limited", {
+      rateLimitWindowMs,
+      clientIp,
+    });
     return NextResponse.json({ ok: false, error: "RATE_LIMIT" }, { status: 429 });
   }
 
@@ -74,7 +82,7 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch (error) {
-    console.error(error);
+    routeLogger.warn("Contact payload parsing failed", { error });
     return NextResponse.json(
       { ok: false, error: "VALIDATION_ERROR" },
       { status: 400 }
@@ -82,6 +90,7 @@ export async function POST(request: Request) {
   }
 
   if (!isValidPayload(payload)) {
+    routeLogger.warn("Contact payload validation failed");
     return NextResponse.json(
       { ok: false, error: "VALIDATION_ERROR" },
       { status: 400 }
@@ -117,9 +126,14 @@ export async function POST(request: Request) {
       "utf-8"
     );
 
+    routeLogger.info("Contact message stored", {
+      messageId: message.id,
+      totalMessages: existingMessages.length,
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error(error);
+    routeLogger.error("Contact message storage failed", { error });
     return NextResponse.json(
       { ok: false, error: "SERVER_ERROR" },
       { status: 500 }

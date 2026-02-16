@@ -127,7 +127,7 @@ export default async function DashboardDocumentTemplateEditPage({
             <span>/</span>
             <span className="dashboard-muted">Modifier</span>
           </div>
-          <h1 className="text-3xl font-semibold">Modifier un template</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Modifier un template</h1>
           <p className="dashboard-faint mt-2 max-w-3xl text-sm">
             Cette fonctionnalité nécessite la table DocumentTemplate.
           </p>
@@ -169,7 +169,7 @@ export default async function DashboardDocumentTemplateEditPage({
           <span>/</span>
           <span className="dashboard-muted">Modifier</span>
         </div>
-        <h1 className="text-3xl font-semibold">Modifier un template</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Modifier un template</h1>
         <p className="dashboard-faint mt-2 max-w-3xl text-sm">
           Mettez à jour les champs de votre modèle. Les changements publiés seront
           visibles dans la page Documents.

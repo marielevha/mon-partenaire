@@ -36,7 +36,7 @@ export default async function DashboardDocumentTemplateNewPage() {
           <span>/</span>
           <span className="dashboard-muted">Nouveau</span>
         </div>
-        <h1 className="text-3xl font-semibold">Ajouter un template document</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Ajouter un template document</h1>
         <p className="dashboard-faint mt-2 max-w-3xl text-sm">
           Créez un nouveau modèle avec ses métadonnées et sa pièce jointe. Il sera
           disponible dans votre bibliothèque après enregistrement.

@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { promises as fs } from "fs";
 import path from "path";
+import Link from "next/link";
+import { PilotageBusinessPerformanceCharts } from "@/components/dashboard/PilotageBusinessPerformanceCharts";
+import { PilotageDonutChart } from "@/components/dashboard/PilotageDonutChart";
+import { PilotageFunnelChart } from "@/components/dashboard/PilotageFunnelChart";
+import { PilotageProjectCreationChart } from "@/components/dashboard/PilotageProjectCreationChart";
 import prisma from "@/src/lib/prisma";
 
 export const metadata: Metadata = {
@@ -53,190 +58,6 @@ function MetricCard({ label, value, hint, tone = "default" }: MetricCardProps) {
       <p className="dashboard-faint text-xs uppercase tracking-wide">{label}</p>
       <p className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</p>
       {hint ? <p className="dashboard-faint mt-1 text-xs">{hint}</p> : null}
-    </div>
-  );
-}
-
-type DonutTone = "accent" | "success" | "warning" | "muted" | "info";
-type DonutItem = { label: string; value: number; tone?: DonutTone };
-type DonutChartProps = {
-  title: string;
-  items: DonutItem[];
-  totalLabel?: string;
-  variant?: "donut" | "pie";
-};
-
-function getDonutColor(tone: DonutTone | undefined) {
-  if (tone === "success") return "#10b981";
-  if (tone === "warning") return "#f59e0b";
-  if (tone === "muted") return "#64748b";
-  if (tone === "info") return "#0ea5e9";
-  return "#6d5efc";
-}
-
-function DonutChart({
-  title,
-  items,
-  totalLabel = "total",
-  variant = "donut",
-}: DonutChartProps) {
-  const total = items.reduce((sum, item) => sum + Math.max(0, item.value), 0);
-  const sanitizedItems = items.filter((item) => item.value > 0);
-
-  let cursor = 0;
-  const gradientSlices: string[] = [];
-  for (const item of sanitizedItems) {
-    const start = cursor;
-    const end = start + (item.value / Math.max(1, total)) * 100;
-    gradientSlices.push(`${getDonutColor(item.tone)} ${start}% ${end}%`);
-    cursor = end;
-  }
-  const backgroundImage =
-    gradientSlices.length > 0
-      ? `conic-gradient(${gradientSlices.join(", ")})`
-      : "conic-gradient(#334155 0% 100%)";
-
-  return (
-    <div className="dashboard-panel flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl p-5">
-      <h3 className="min-h-[3rem] text-sm font-semibold leading-6">{title}</h3>
-      <div className="mt-4 flex flex-1 flex-col justify-center gap-5">
-        <div
-          className="relative mx-auto h-36 w-36 shrink-0 rounded-full"
-          style={{ backgroundImage }}
-          aria-hidden="true"
-        >
-          {variant === "donut" ? (
-            <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full border border-border/60 bg-background">
-              <span className="text-lg font-semibold">{total}</span>
-              <span className="dashboard-faint text-[11px] uppercase tracking-wide">
-                {totalLabel}
-              </span>
-            </div>
-          ) : null}
-        </div>
-        <div className="min-w-0 space-y-2.5 text-sm">
-          {(sanitizedItems.length > 0 ? sanitizedItems : items).map((item) => {
-            const ratio = total > 0 ? Math.round((item.value / total) * 100) : 0;
-            return (
-              <div key={item.label} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: getDonutColor(item.tone) }}
-                    aria-hidden="true"
-                  />
-                  <span className="dashboard-faint truncate">{item.label}</span>
-                </span>
-                <span className="shrink-0 whitespace-nowrap font-semibold">
-                  {item.value} <span className="dashboard-faint">({ratio}%)</span>
-                </span>
-              </div>
-            );
-          })}
-          {variant === "pie" ? (
-            <p className="dashboard-faint mt-1 text-xs uppercase tracking-wide">
-              {totalLabel}: {total}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type LineChartProps = {
-  title: string;
-  points: SeriesPoint[];
-  suffix?: string;
-};
-
-function LineChart({ title, points, suffix = "" }: LineChartProps) {
-  const width = 320;
-  const height = 120;
-  const padding = 16;
-  const maxY = Math.max(1, ...points.map((point) => point.value));
-  const stepX =
-    points.length > 1 ? (width - padding * 2) / (points.length - 1) : width - padding * 2;
-
-  const path = points
-    .map((point, index) => {
-      const x = padding + index * stepX;
-      const y = height - padding - (point.value / maxY) * (height - padding * 2);
-      return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
-
-  const areaPath = `${path} L ${width - padding} ${height - padding} L ${padding} ${
-    height - padding
-  } Z`;
-
-  return (
-    <div className="dashboard-panel flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl p-5">
-      <h3 className="min-h-[3rem] text-sm font-semibold leading-6">{title}</h3>
-      <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full flex-1">
-        <path d={areaPath} fill="rgba(109, 94, 252, 0.14)" />
-        <path d={path} fill="none" stroke="var(--accent)" strokeWidth="2.5" />
-        {points.map((point, index) => {
-          const x = padding + index * stepX;
-          const y = height - padding - (point.value / maxY) * (height - padding * 2);
-          return (
-            <circle
-              key={`${point.label}-${index}`}
-              cx={x}
-              cy={y}
-              r="2.5"
-              fill="var(--accent)"
-            />
-          );
-        })}
-      </svg>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-text-secondary sm:grid-cols-6">
-        {points.map((point) => (
-          <div
-            key={point.label}
-            className="truncate rounded-md border border-border/50 bg-background/30 px-2 py-1 text-center"
-          >
-            {point.label}: {point.value}
-            {suffix}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type FunnelChartProps = {
-  title: string;
-  steps: Array<{ label: string; value: number }>;
-};
-
-function FunnelChart({ title, steps }: FunnelChartProps) {
-  const max = Math.max(1, ...steps.map((step) => step.value));
-
-  return (
-    <div className="dashboard-panel rounded-2xl p-5">
-      <h3 className="text-sm font-semibold">{title}</h3>
-      <div className="mt-4 space-y-3">
-        {steps.map((step, index) => {
-          const width = Math.max(2, Math.round((step.value / max) * 100));
-          return (
-            <div key={step.label} className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="dashboard-faint">
-                  {index + 1}. {step.label}
-                </span>
-                <span className="font-semibold">{step.value}</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-border/60">
-                <div
-                  className="h-2.5 rounded-full bg-accent transition-all duration-300"
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -578,19 +399,27 @@ export default async function DashboardPilotagePage() {
     openNeedsByType.map((row) => [row.type, row._count._all])
   );
   const statusChartItems = [
-    { label: "Brouillons", value: draftProjects, tone: "warning" as const },
-    { label: "Publiés", value: publishedProjects, tone: "success" as const },
-    { label: "Clôturés", value: archivedProjects, tone: "muted" as const },
+    { label: "Brouillons", value: draftProjects, color: "#f59e0b" },
+    { label: "Publiés", value: publishedProjects, color: "#10b981" },
+    { label: "Clôturés", value: archivedProjects, color: "#64748b" },
   ];
   const needsTypeChartItems = [
-    { label: "FINANCIAL", value: openNeedTypeMap.get("FINANCIAL") ?? 0, tone: "accent" as const },
-    { label: "SKILL", value: openNeedTypeMap.get("SKILL") ?? 0, tone: "info" as const },
-    { label: "MATERIAL", value: openNeedTypeMap.get("MATERIAL") ?? 0, tone: "success" as const },
-    { label: "PARTNERSHIP", value: openNeedTypeMap.get("PARTNERSHIP") ?? 0, tone: "warning" as const },
+    { label: "FINANCIAL", value: openNeedTypeMap.get("FINANCIAL") ?? 0, color: "#6d5efc" },
+    { label: "SKILL", value: openNeedTypeMap.get("SKILL") ?? 0, color: "#0ea5e9" },
+    { label: "MATERIAL", value: openNeedTypeMap.get("MATERIAL") ?? 0, color: "#10b981" },
+    { label: "PARTNERSHIP", value: openNeedTypeMap.get("PARTNERSHIP") ?? 0, color: "#f59e0b" },
   ];
   const publishedProjectsSplitItems = [
-    { label: "Ouverts (besoins restants)", value: publishedOpenByNeedsCount, tone: "success" as const },
-    { label: "Fermés (besoins validés)", value: publishedClosedByNeedsCount, tone: "muted" as const },
+    {
+      label: "Ouverts (besoins restants)",
+      value: publishedOpenByNeedsCount,
+      color: "#10b981",
+    },
+    {
+      label: "Fermés (besoins validés)",
+      value: publishedClosedByNeedsCount,
+      color: "#64748b",
+    },
   ];
   const funnelSteps = [
     { label: "Inscrits", value: profilesCounts.total },
@@ -615,7 +444,7 @@ export default async function DashboardPilotagePage() {
     <section className="space-y-6">
       <div className="dashboard-panel rounded-2xl p-6">
         <p className="text-xs uppercase tracking-[0.2em] text-accent">Pilotage</p>
-        <h1 className="mt-3 text-3xl font-semibold">Business + Ops + Qualité</h1>
+        <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">Business + Ops + Qualité</h1>
         <p className="dashboard-faint mt-2 text-sm">
           Vue admin structurée en 7 blocs: KPIs exécutifs, funnel, santé marketplace,
           conformité, templates, support et monitoring technique.
@@ -654,26 +483,23 @@ export default async function DashboardPilotagePage() {
       </div>
 
       <div className="grid items-stretch gap-6 xl:grid-cols-2 2xl:grid-cols-4">
-        <DonutChart
+        <PilotageDonutChart
           title="Répartition des projets par statut"
           items={statusChartItems}
           totalLabel="projets"
         />
-        <DonutChart
+        <PilotageDonutChart
           title="Publiés: ouverts vs fermés (selon besoins)"
           items={publishedProjectsSplitItems}
           totalLabel="publiés"
           variant="pie"
         />
-        <DonutChart
+        <PilotageDonutChart
           title="Besoins ouverts par type"
           items={needsTypeChartItems}
           totalLabel="besoins"
         />
-        <LineChart
-          title="Création de projets (6 derniers mois)"
-          points={monthlyProjectSeries}
-        />
+        <PilotageProjectCreationChart initialPoints={monthlyProjectSeries} initialMonths={6} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -683,27 +509,26 @@ export default async function DashboardPilotagePage() {
           <p className="dashboard-faint mt-1 text-sm">
             Traction globale, conversion des projets et couverture financière.
           </p>
+          <div className="mt-4">
+            <PilotageBusinessPerformanceCharts
+              totalCapitalSought={totalCapitalSought}
+              ownerContributionTotal={ownerContributionTotal}
+              financialAmountFilled={financialAmountFilled}
+              publicationRate={publicationRate}
+              draftToPublishedRate={draftToPublishedRate}
+              capitalCoverage={capitalCoverage}
+              needsFillRate={needsFillRate}
+              ownerActivationRate={ownerActivationRate}
+            />
+          </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <MetricCard
               label="Nouveaux inscrits (30j)"
               value={String(profilesCounts.last30d)}
             />
             <MetricCard
-              label="Conv. brouillon → publié"
-              value={formatPercent(draftToPublishedRate)}
-            />
-            <MetricCard
               label="Temps moyen vers publication"
               value={formatDays(avgPublishLeadDays)}
-            />
-            <MetricCard label="Capital visé" value={formatMoney(totalCapitalSought)} />
-            <MetricCard
-              label="Apport fondateur cumulé"
-              value={formatMoney(ownerContributionTotal)}
-            />
-            <MetricCard
-              label="Financement externe comblé"
-              value={formatMoney(financialAmountFilled)}
             />
           </div>
         </div>
@@ -715,7 +540,7 @@ export default async function DashboardPilotagePage() {
             Parcours utilisateur de l&apos;inscription à la publication/clôture projet.
           </p>
           <div className="mt-4">
-            <FunnelChart title="Entonnoir utilisateurs" steps={funnelSteps} />
+            <PilotageFunnelChart title="Entonnoir utilisateurs" steps={funnelSteps} />
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <MetricCard
@@ -785,6 +610,14 @@ export default async function DashboardPilotagePage() {
               value={String(allocationAnomalies.length)}
               tone={allocationAnomalies.length > 0 ? "warning" : "success"}
             />
+          </div>
+          <div className="mt-4">
+            <Link
+              href="/dashboard/pilotage/incoherences"
+              className="dashboard-btn-secondary inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+            >
+              Voir la liste détaillée
+            </Link>
           </div>
 
           {allocationAnomalies.length > 0 ? (
