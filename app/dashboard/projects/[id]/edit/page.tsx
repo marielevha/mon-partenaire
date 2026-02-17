@@ -11,7 +11,8 @@ import {
   getProjectNeedsByProjectId,
 } from "@/src/lib/projects";
 import prisma from "@/src/lib/prisma";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserAnyPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Modifier un projet | Dashboard | Mon partenaire",
@@ -25,14 +26,16 @@ type DashboardEditProjectPageProps = {
 export default async function DashboardEditProjectPage({
   params,
 }: DashboardEditProjectPageProps) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  const context = await requireCurrentUserAnyPermission(
+    [
+      RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_OWN,
+      RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY,
+    ],
+    { redirectTo: "/dashboard/projects" }
+  );
+  const canUpdateAny = context.permissionCodes.includes(
+    RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY
+  );
 
   const resolvedParams = params ? await params : undefined;
   const projectId = resolvedParams?.id;
@@ -44,7 +47,7 @@ export default async function DashboardEditProjectPage({
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      ownerId: session.user.id,
+      ...(canUpdateAny ? {} : { ownerId: context.userId }),
     },
     select: {
       id: true,

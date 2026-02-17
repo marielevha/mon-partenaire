@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { DocumentTemplateEditForm } from "@/components/dashboard/DocumentTemplateEditForm";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Nouveau template document | Dashboard | Mon partenaire",
@@ -10,14 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardDocumentTemplateNewPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  await requireCurrentUserPermission(
+    RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_CREATE,
+    { redirectTo: "/dashboard/document-templates" }
+  );
 
   return (
     <section className="space-y-6">
@@ -49,4 +45,3 @@ export default async function DashboardDocumentTemplateNewPage() {
     </section>
   );
 }
-

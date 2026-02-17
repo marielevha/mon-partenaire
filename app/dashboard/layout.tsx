@@ -12,6 +12,8 @@ import {
   listDashboardNotificationsForUser,
 } from "@/src/lib/notifications/dashboard-notifications";
 import { DashboardNotificationsMenu } from "@/components/dashboard/DashboardNotificationsMenu";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { getUserRbacSnapshot } from "@/src/lib/rbac/core";
 
 export default async function DashboardLayout({
   children,
@@ -25,6 +27,10 @@ export default async function DashboardLayout({
 
   if (!session?.user?.id) {
     redirect("/auth/login");
+  }
+  const rbacSnapshot = await getUserRbacSnapshot(session.user.id);
+  if (!rbacSnapshot.permissionCodes.includes(RBAC_PERMISSIONS.DASHBOARD_ACCESS)) {
+    redirect("/");
   }
 
   const { data: profile } = await supabase
@@ -71,7 +77,7 @@ export default async function DashboardLayout({
           <p className="dashboard-faint mb-3 px-1 text-xs uppercase tracking-[0.2em]">
             Menu
           </p>
-          <DashboardNavClient />
+          <DashboardNavClient permissionCodes={rbacSnapshot.permissionCodes} />
         </div>
       </aside>
 
@@ -81,6 +87,7 @@ export default async function DashboardLayout({
             <DashboardMobileMenu
               fullName={fullName}
               email={session.user.email ?? "Adresse email indisponible"}
+              permissionCodes={rbacSnapshot.permissionCodes}
             />
             <DashboardSidebarToggle />
             <div className="xl:hidden">

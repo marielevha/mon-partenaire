@@ -19,6 +19,8 @@ import {
 } from "@/src/lib/s3-storage";
 import { logger } from "@/src/lib/logging/logger";
 import { getServerActionLogger } from "@/src/lib/logging/server-action";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { userHasPermission } from "@/src/lib/rbac/core";
 
 type ProjectFormSuccess = {
   ok: true;
@@ -1007,6 +1009,19 @@ export async function createProjectAction(
     };
   }
   const userLogger = actionLogger.child({ userId: session.user.id });
+  const canCreateProject = await userHasPermission(
+    session.user.id,
+    RBAC_PERMISSIONS.DASHBOARD_PROJECTS_CREATE
+  );
+  if (!canCreateProject) {
+    userLogger.warn("Create project rejected: missing permission", {
+      permission: RBAC_PERMISSIONS.DASHBOARD_PROJECTS_CREATE,
+    });
+    return {
+      ok: false,
+      message: "Accès refusé. Vous ne pouvez pas créer de projet.",
+    };
+  }
 
   const parsed = parseAndValidateProjectForm(formData);
   if (!parsed.data) {
@@ -1201,6 +1216,22 @@ export async function updateProjectAction(
     }
     actorUserId = session.user.id;
     const userLogger = actionLogger.child({ userId: session.user.id });
+    const [canUpdateOwn, canUpdateAny] = await Promise.all([
+      userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_OWN),
+      userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY),
+    ]);
+    if (!canUpdateOwn && !canUpdateAny) {
+      userLogger.warn("Update project rejected: missing permission", {
+        permissions: [
+          RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_OWN,
+          RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY,
+        ],
+      });
+      return {
+        ok: false,
+        message: "Accès refusé. Vous ne pouvez pas modifier ce projet.",
+      };
+    }
 
     const projectId = getValue(formData, "projectId");
     if (!projectId) {
@@ -1214,7 +1245,7 @@ export async function updateProjectAction(
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      ownerId: session.user.id,
+      ...(canUpdateAny ? {} : { ownerId: session.user.id }),
     },
     select: {
       id: true,
@@ -1686,6 +1717,19 @@ export async function updateProjectStatusAction(formData: FormData) {
     return;
   }
   const userLogger = actionLogger.child({ userId: session.user.id });
+  const [canUpdateOwn, canUpdateAny] = await Promise.all([
+    userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_OWN),
+    userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY),
+  ]);
+  if (!canUpdateOwn && !canUpdateAny) {
+    userLogger.warn("Update project status rejected: missing permission", {
+      permissions: [
+        RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_OWN,
+        RBAC_PERMISSIONS.DASHBOARD_PROJECTS_UPDATE_ANY,
+      ],
+    });
+    return;
+  }
 
   const projectId = getValue(formData, "projectId");
   const status = getValue(formData, "status");
@@ -1704,7 +1748,7 @@ export async function updateProjectStatusAction(formData: FormData) {
     SELECT "status"
     FROM "Project"
     WHERE "id" = ${projectId}
-      AND "ownerId" = ${session.user.id}
+      ${canUpdateAny ? Prisma.empty : Prisma.sql`AND "ownerId" = ${session.user.id}`}
     LIMIT 1
   `;
   const previousStatus = previousStatusRow[0]?.status;
@@ -1730,7 +1774,7 @@ export async function updateProjectStatusAction(formData: FormData) {
       LEFT JOIN "ProjectNeed" n
         ON n."projectId" = p."id"
       WHERE p."id" = ${projectId}
-        AND p."ownerId" = ${session.user.id}
+        ${canUpdateAny ? Prisma.empty : Prisma.sql`AND p."ownerId" = ${session.user.id}`}
       GROUP BY p."id", p."ownerEquityPercent"
     `;
 
@@ -1761,7 +1805,7 @@ export async function updateProjectStatusAction(formData: FormData) {
   await prisma.project.updateMany({
     where: {
       id: projectId,
-      ownerId: session.user.id,
+      ...(canUpdateAny ? {} : { ownerId: session.user.id }),
     },
     data: {
       status: status as (typeof PROJECT_STATUSES)[number],

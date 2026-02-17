@@ -8,6 +8,8 @@ import {
   uploadProjectDocumentObject,
 } from "@/src/lib/s3-storage";
 import { getServerActionLogger } from "@/src/lib/logging/server-action";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { userHasPermission } from "@/src/lib/rbac/core";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 type DocumentTemplateField =
@@ -355,6 +357,19 @@ export async function createDocumentTemplateAction(
     };
   }
   const userLogger = actionLogger.child({ userId: session.user.id });
+  const canCreate = await userHasPermission(
+    session.user.id,
+    RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_CREATE
+  );
+  if (!canCreate) {
+    userLogger.warn("Create document template rejected: missing permission", {
+      permission: RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_CREATE,
+    });
+    return {
+      ok: false,
+      message: "Accès refusé. Vous ne pouvez pas créer de template document.",
+    };
+  }
 
   const parsed = parseTemplateForm(formData);
   if (!parsed.data) {
@@ -597,6 +612,22 @@ export async function updateDocumentTemplateAction(
     };
   }
   const userLogger = actionLogger.child({ userId: session.user.id });
+  const [canUpdateOwn, canUpdateAny] = await Promise.all([
+    userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_OWN),
+    userHasPermission(session.user.id, RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_ANY),
+  ]);
+  if (!canUpdateOwn && !canUpdateAny) {
+    userLogger.warn("Update document template rejected: missing permission", {
+      permissions: [
+        RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_OWN,
+        RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_ANY,
+      ],
+    });
+    return {
+      ok: false,
+      message: "Accès refusé. Vous ne pouvez pas modifier ce template.",
+    };
+  }
 
   const templateId = getValue(formData, "templateId");
   if (!templateId || !isUuid(templateId)) {
@@ -719,7 +750,7 @@ export async function updateDocumentTemplateAction(
         "isFeatured"
       FROM "DocumentTemplate"
       WHERE "id" = ${templateId}::uuid
-        AND "ownerId" = ${session.user.id}
+        ${canUpdateAny ? Prisma.empty : Prisma.sql`AND "ownerId" = ${session.user.id}`}
       LIMIT 1
     `;
   } catch (error) {

@@ -7,6 +7,8 @@ import { PilotageDonutChart } from "@/components/dashboard/PilotageDonutChart";
 import { PilotageFunnelChart } from "@/components/dashboard/PilotageFunnelChart";
 import { PilotageProjectCreationChart } from "@/components/dashboard/PilotageProjectCreationChart";
 import prisma from "@/src/lib/prisma";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Pilotage | Dashboard Mon partenaire",
@@ -261,6 +263,8 @@ async function getProjectsCreatedByMonth(months = 6) {
 }
 
 export default async function DashboardPilotagePage() {
+  await requireCurrentUserPermission(RBAC_PERMISSIONS.DASHBOARD_PILOTAGE_READ);
+
   const [
     profilesCounts,
     funnel,
@@ -276,7 +280,7 @@ export default async function DashboardPilotagePage() {
     openNeedsByType,
     filledFinancialNeedsAggregate,
     ownerContributionAggregate,
-    staleProjectsCount,
+    staleProjectsRows,
     criticalFinancialNeedsCount,
     publishedMissingDataCount,
     templatesStats,
@@ -315,12 +319,12 @@ export default async function DashboardPilotagePage() {
     prisma.project.aggregate({
       _sum: { ownerContribution: true },
     }),
-    prisma.project.count({
-      where: {
-        status: { not: "ARCHIVED" },
-        updatedAt: { lte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      },
-    }),
+    prisma.$queryRaw<Array<{ count: number }>>`
+      SELECT COUNT(*)::int AS count
+      FROM "Project"
+      WHERE status <> 'ARCHIVED'
+        AND "updatedAt" <= NOW() - INTERVAL '30 days'
+    `,
     prisma.projectNeed.count({
       where: {
         isFilled: false,
@@ -378,6 +382,7 @@ export default async function DashboardPilotagePage() {
   const totalCapitalSought = capitalAggregate._sum.totalCapital ?? 0;
   const ownerContributionTotal = ownerContributionAggregate._sum.ownerContribution ?? 0;
   const financialAmountFilled = filledFinancialNeedsAggregate._sum.amount ?? 0;
+  const staleProjectsCount = staleProjectsRows[0]?.count ?? 0;
   const totalCapitalMobilized = ownerContributionTotal + financialAmountFilled;
   const capitalCoverage =
     totalCapitalSought > 0 ? (totalCapitalMobilized / totalCapitalSought) * 100 : 0;

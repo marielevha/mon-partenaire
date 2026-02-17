@@ -6,9 +6,14 @@ import { DashboardNavClient } from "@/components/dashboard/DashboardNavClient";
 type DashboardMobileMenuProps = {
   fullName: string;
   email: string;
+  permissionCodes: string[];
 };
 
-export function DashboardMobileMenu({ fullName, email }: DashboardMobileMenuProps) {
+export function DashboardMobileMenu({
+  fullName,
+  email,
+  permissionCodes,
+}: DashboardMobileMenuProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -107,7 +112,11 @@ export function DashboardMobileMenu({ fullName, email }: DashboardMobileMenuProp
               <p className="dashboard-faint mb-3 px-1 text-xs uppercase tracking-[0.2em]">
                 Menu
               </p>
-              <DashboardNavClient mobile onNavigate={() => setOpen(false)} />
+              <DashboardNavClient
+                mobile
+                onNavigate={() => setOpen(false)}
+                permissionCodes={permissionCodes}
+              />
             </div>
           </aside>
         </div>

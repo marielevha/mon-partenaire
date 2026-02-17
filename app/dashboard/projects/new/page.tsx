@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CreateProjectForm } from "@/components/dashboard/CreateProjectForm";
 import { buildProjectFormPrefillFromTemplate } from "@/src/lib/document-templates";
 import { getDocumentTemplateBySlugFromDatabase } from "@/src/lib/document-templates.server";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Nouveau projet | Dashboard | Mon partenaire",
@@ -16,6 +18,10 @@ type DashboardCreateProjectPageProps = {
 export default async function DashboardCreateProjectPage({
   searchParams,
 }: DashboardCreateProjectPageProps) {
+  await requireCurrentUserPermission(RBAC_PERMISSIONS.DASHBOARD_PROJECTS_CREATE, {
+    redirectTo: "/dashboard/projects",
+  });
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const templateSlug =
     typeof resolvedSearchParams?.template === "string"

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 type DashboardNavClientProps = {
   mobile?: boolean;
   onNavigate?: () => void;
+  permissionCodes?: string[];
 };
 
 const DashboardNav = dynamic(
@@ -40,8 +41,18 @@ const DashboardNav = dynamic(
   }
 );
 
-export function DashboardNavClient({ mobile = false, onNavigate }: DashboardNavClientProps) {
-  return <DashboardNav mobile={mobile} onNavigate={onNavigate} />;
+export function DashboardNavClient({
+  mobile = false,
+  onNavigate,
+  permissionCodes,
+}: DashboardNavClientProps) {
+  return (
+    <DashboardNav
+      mobile={mobile}
+      onNavigate={onNavigate}
+      permissionCodes={permissionCodes}
+    />
+  );
 }
 
 export default DashboardNavClient;

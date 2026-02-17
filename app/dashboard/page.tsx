@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import prisma from "@/src/lib/prisma";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import { updateProjectStatusAction } from "@/app/dashboard/actions";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Dashboard | Mon partenaire",
@@ -96,14 +97,10 @@ async function getOwnerEquityPercentByProjectIds(projectIds: string[]) {
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  const context = await requireCurrentUserPermission(
+    RBAC_PERMISSIONS.DASHBOARD_OVERVIEW_READ,
+    { redirectTo: "/" }
+  );
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const pageParam =
@@ -119,7 +116,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const itemsPerPage = ITEMS_PER_PAGE_OPTIONS.includes(limitParam) ? limitParam : 10;
 
   const where = {
-    ownerId: session.user.id,
+    ownerId: context.userId,
   };
 
   const totalProjects = await prisma.project.count({ where });
@@ -177,7 +174,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     where: {
       isFilled: false,
       project: {
-        ownerId: session.user.id,
+        ownerId: context.userId,
       },
     },
   });

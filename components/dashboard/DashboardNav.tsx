@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/components/ui/utils";
 
 type DashboardNavProps = {
   mobile?: boolean;
   onNavigate?: () => void;
+  permissionCodes?: string[];
 };
 
 type NavItem = {
   href: string;
   label: string;
   icon: IconName;
+  requiredPermission?: string;
+  requiredAnyPermissions?: string[];
   isActive: (pathname: string) => boolean;
 };
 
@@ -33,7 +36,8 @@ type IconName =
   | "plus"
   | "documents"
   | "upload"
-  | "profile";
+  | "profile"
+  | "shield";
 
 function normalizePathname(pathname: string) {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -51,12 +55,14 @@ const navGroups: NavGroup[] = [
         href: "/dashboard",
         label: "Vue d'ensemble",
         icon: "home",
+        requiredPermission: "dashboard.overview.read",
         isActive: (pathname: string) => normalizePathname(pathname) === "/dashboard",
       },
       {
         href: "/dashboard/pilotage",
         label: "Pilotage business",
         icon: "chart",
+        requiredPermission: "dashboard.pilotage.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/pilotage",
       },
@@ -64,6 +70,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/pilotage/incoherences",
         label: "Incohérences projets",
         icon: "warning",
+        requiredPermission: "dashboard.quality.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/pilotage/incoherences" ||
           normalizePathname(pathname).startsWith("/dashboard/pilotage/incoherences/"),
@@ -72,6 +79,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/logs",
         label: "Logs",
         icon: "logs",
+        requiredPermission: "dashboard.logs.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/logs" ||
           normalizePathname(pathname).startsWith("/dashboard/logs/"),
@@ -80,6 +88,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/notifications",
         label: "Notifications",
         icon: "bell",
+        requiredPermission: "dashboard.notifications.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/notifications" ||
           normalizePathname(pathname).startsWith("/dashboard/notifications/"),
@@ -94,6 +103,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/projects",
         label: "Mes projets",
         icon: "projects",
+        requiredPermission: "dashboard.projects.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/projects" ||
           (normalizePathname(pathname).startsWith("/dashboard/projects/") &&
@@ -103,6 +113,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/projects/new",
         label: "Créer un projet",
         icon: "plus",
+        requiredPermission: "dashboard.projects.create",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/projects/new",
       },
@@ -116,6 +127,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/document-templates",
         label: "Templates documents",
         icon: "documents",
+        requiredPermission: "dashboard.document_templates.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/document-templates" ||
           (normalizePathname(pathname).startsWith("/dashboard/document-templates/") &&
@@ -125,6 +137,7 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/document-templates/new",
         label: "Ajouter un document",
         icon: "upload",
+        requiredPermission: "dashboard.document_templates.create",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/document-templates/new",
       },
@@ -138,9 +151,19 @@ const navGroups: NavGroup[] = [
         href: "/dashboard/profile",
         label: "Profil",
         icon: "profile",
+        requiredPermission: "dashboard.profile.read",
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/profile" ||
           normalizePathname(pathname).startsWith("/dashboard/profile/"),
+      },
+      {
+        href: "/dashboard/rbac",
+        label: "Rôles & permissions",
+        icon: "shield",
+        requiredAnyPermissions: ["rbac.roles.read", "rbac.user_roles.read"],
+        isActive: (pathname: string) =>
+          normalizePathname(pathname) === "/dashboard/rbac" ||
+          normalizePathname(pathname).startsWith("/dashboard/rbac/"),
       },
     ],
   },
@@ -230,6 +253,14 @@ function MenuItemIcon({ icon }: { icon: IconName }) {
       </svg>
     );
   }
+  if (icon === "shield") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M10 3 4.5 5.2V9c0 4.3 2.2 6.7 5.5 8 3.3-1.3 5.5-3.7 5.5-8V5.2L10 3Z" />
+        <path d="m7.4 9.8 1.7 1.7 3.5-3.5" />
+      </svg>
+    );
+  }
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <circle cx="10" cy="6.5" r="3" />
@@ -238,26 +269,31 @@ function MenuItemIcon({ icon }: { icon: IconName }) {
   );
 }
 
-export function DashboardNav({ mobile = false, onNavigate }: DashboardNavProps) {
+export function DashboardNav({
+  mobile = false,
+  onNavigate,
+  permissionCodes = [],
+}: DashboardNavProps) {
   const pathname = normalizePathname(usePathname());
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
+  const permissionSet = new Set(permissionCodes);
 
-  useEffect(() => {
-    const activeGroup = navGroups.find((group) =>
-      group.items.some((item) => item.isActive(pathname))
-    );
-
-    if (!activeGroup) {
-      return;
-    }
-
-    setCollapsedGroupIds((previous) => {
-      if (!previous.includes(activeGroup.id)) {
-        return previous;
-      }
-      return previous.filter((id) => id !== activeGroup.id);
-    });
-  }, [pathname]);
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.requiredAnyPermissions && item.requiredAnyPermissions.length > 0) {
+          return item.requiredAnyPermissions.some((permissionCode) =>
+            permissionSet.has(permissionCode)
+          );
+        }
+        if (!item.requiredPermission) {
+          return true;
+        }
+        return permissionSet.has(item.requiredPermission);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroupIds((previous) => {
@@ -270,9 +306,9 @@ export function DashboardNav({ mobile = false, onNavigate }: DashboardNavProps) 
 
   return (
     <nav className={cn("space-y-3", mobile && "space-y-2")}>
-      {navGroups.map((group) => {
+      {visibleNavGroups.map((group) => {
         const groupIsActive = group.items.some((item) => item.isActive(pathname));
-        const isCollapsed = collapsedGroupIds.includes(group.id);
+        const isCollapsed = collapsedGroupIds.includes(group.id) && !groupIsActive;
 
         return (
           <section

@@ -7,6 +7,8 @@ import prisma from "@/src/lib/prisma";
 import { getServerActionLogger } from "@/src/lib/logging/server-action";
 import { addDashboardNotification } from "@/src/lib/notifications/dashboard-notifications";
 import { sendProjectInconsistencyNotificationEmail } from "@/src/lib/notifications/email";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { userHasPermission } from "@/src/lib/rbac/core";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 type NotifyOwnerSuccess = {
@@ -107,6 +109,20 @@ export async function notifyProjectOwnerAction(
   }
 
   const userLogger = actionLogger.child({ userId: session.user.id });
+  const canNotify = await userHasPermission(
+    session.user.id,
+    RBAC_PERMISSIONS.DASHBOARD_QUALITY_NOTIFY
+  );
+  if (!canNotify) {
+    userLogger.warn("Notify owner rejected: missing permission", {
+      permission: RBAC_PERMISSIONS.DASHBOARD_QUALITY_NOTIFY,
+    });
+    return {
+      ok: false,
+      message: "Accès refusé. Vous n'avez pas la permission de notifier ce projet.",
+    };
+  }
+
   const projectId = getValue(formData, "projectId");
 
   if (!projectId) {

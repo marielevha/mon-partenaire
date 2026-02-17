@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { redirect } from "next/navigation";
 import { DocumentTemplatesDataTable } from "@/components/dashboard/DocumentTemplatesDataTable";
 import prisma from "@/src/lib/prisma";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Templates documents | Dashboard | Mon partenaire",
@@ -36,14 +36,10 @@ function isMissingDocumentTemplateTableError(error: unknown) {
 }
 
 export default async function DashboardDocumentTemplatesPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  const context = await requireCurrentUserPermission(
+    RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_READ,
+    { redirectTo: "/dashboard" }
+  );
 
   let templates: TemplateListItem[] = [];
   let isMissingTable = false;
@@ -64,7 +60,7 @@ export default async function DashboardDocumentTemplatesPage() {
         "createdAt",
         "updatedAt"
       FROM "DocumentTemplate"
-      WHERE "ownerId" = ${session.user.id}
+      WHERE "ownerId" = ${context.userId}
       ORDER BY "updatedAt" DESC, "createdAt" DESC
     `;
   } catch (error) {

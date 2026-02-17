@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ProjectInconsistenciesDataTable } from "@/components/dashboard/ProjectInconsistenciesDataTable";
 import prisma from "@/src/lib/prisma";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserPermission } from "@/src/lib/rbac/server";
 
 export const metadata: Metadata = {
   title: "Incohérences projets | Dashboard | Mon partenaire",
@@ -34,14 +34,9 @@ function toOwnerLabel(ownerFullName: string | null, ownerId: string) {
 }
 
 export default async function DashboardProjectInconsistenciesPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  await requireCurrentUserPermission(RBAC_PERMISSIONS.DASHBOARD_QUALITY_READ, {
+    redirectTo: "/dashboard",
+  });
 
   const rows = await prisma.$queryRaw<InconsistencyRow[]>`
     SELECT

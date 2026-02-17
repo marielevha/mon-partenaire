@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { userHasPermission } from "@/src/lib/rbac/core";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 const ALLOWED_MONTHS = [3, 6, 9, 12] as const;
@@ -48,6 +50,13 @@ export async function GET(request: Request) {
 
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
+  }
+  const canReadPilotage = await userHasPermission(
+    session.user.id,
+    RBAC_PERMISSIONS.DASHBOARD_PILOTAGE_READ
+  );
+  if (!canReadPilotage) {
+    return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
   }
 
   const url = new URL(request.url);

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { DocumentTemplateEditForm } from "@/components/dashboard/DocumentTemplateEditForm";
 import prisma from "@/src/lib/prisma";
+import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
+import { requireCurrentUserAnyPermission } from "@/src/lib/rbac/server";
 import { resolveS3DocumentPublicUrlFromStoredValue } from "@/src/lib/s3-storage";
-import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Modifier template | Dashboard | Mon partenaire",
@@ -65,14 +66,16 @@ export default async function DashboardDocumentTemplateEditPage({
     notFound();
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
+  const context = await requireCurrentUserAnyPermission(
+    [
+      RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_OWN,
+      RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_ANY,
+    ],
+    { redirectTo: "/dashboard/document-templates" }
+  );
+  const canUpdateAny = context.permissionCodes.includes(
+    RBAC_PERMISSIONS.DASHBOARD_DOCUMENT_TEMPLATES_UPDATE_ANY
+  );
 
   let template: TemplateEditRecord | null = null;
   let isMissingTable = false;
@@ -98,7 +101,7 @@ export default async function DashboardDocumentTemplateEditPage({
         "isFeatured"
       FROM "DocumentTemplate"
       WHERE "id" = ${templateId}::uuid
-        AND "ownerId" = ${session.user.id}
+        ${canUpdateAny ? Prisma.empty : Prisma.sql`AND "ownerId" = ${context.userId}`}
       LIMIT 1
     `;
     template = records[0] ?? null;

@@ -305,6 +305,34 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - état mémorisé dans le navigateur,
   - raccourci clavier `Ctrl+B` / `Cmd+B` (hors champs de saisie).
 
+## Mise à jour récente (RBAC rôles/permissions)
+
+- Mise en place d'une base RBAC complète en base de données:
+  - script SQL idempotent: `supabase/rbac.sql`,
+  - tables: `Role`, `Permission`, `RolePermission`, `UserRole`,
+  - fonctions SQL: `user_has_permission`, `user_has_role`,
+  - trigger d'assignation automatique du rôle `member` pour chaque nouvel utilisateur.
+- Rôles système seedés:
+  - `member`, `operator`, `admin`, `super_admin`.
+- Permissions centralisées côté application:
+  - constantes: `src/lib/rbac/permissions.ts`,
+  - helpers serveur: `src/lib/rbac/core.ts`, `src/lib/rbac/server.ts`.
+- Dashboard branché au RBAC:
+  - accès global contrôlé par `dashboard.access`,
+  - menu dashboard filtré dynamiquement selon les permissions du user,
+  - guards sur pages sensibles (`pilotage`, `incohérences`, `logs`, routes documents/projets),
+  - guards sur actions serveurs critiques (création/modification projet, templates, notification incohérences).
+
+### Activation RBAC
+
+Exécuter dans Supabase SQL Editor:
+
+```sql
+-- collez ici le contenu complet de supabase/rbac.sql
+```
+
+Ou copier/coller directement le contenu de `supabase/rbac.sql`.
+
 ### Formulaire de contact
 
 - Endpoint : `POST /api/contact`.
