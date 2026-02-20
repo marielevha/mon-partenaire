@@ -190,7 +190,7 @@ export function ProjectNeedApplicationsDataTable({
 
   return (
     <div className="dashboard-panel rounded-2xl p-6">
-      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px_220px_auto_auto]">
+      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px_220px]">
         <label className="flex flex-col gap-1.5">
           <span className="dashboard-faint text-xs uppercase tracking-wide">Recherche</span>
           <input
@@ -239,25 +239,6 @@ export function ProjectNeedApplicationsDataTable({
           </select>
         </label>
 
-        <label className="flex items-end gap-2">
-          <span className="dashboard-faint text-sm">Lignes</span>
-          <select
-            value={String(itemsPerPage)}
-            onChange={(event) => {
-              setItemsPerPage(Number.parseInt(event.target.value, 10));
-              setCurrentPage(1);
-            }}
-            className="dashboard-input rounded-md px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
-          >
-            {ITEMS_PER_PAGE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <p className="dashboard-faint flex items-end text-sm">{totalItems} candidature(s)</p>
       </div>
 
       {paginatedItems.length === 0 ? (
@@ -345,14 +326,26 @@ export function ProjectNeedApplicationsDataTable({
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="dashboard-faint text-xs">
-          {totalItems === 0
-            ? "0 résultat"
-            : `${(effectiveCurrentPage - 1) * itemsPerPage + 1}-${Math.min(
-                effectiveCurrentPage * itemsPerPage,
-                totalItems
-              )} sur ${totalItems}`}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="dashboard-faint text-sm">Lignes</span>
+            <select
+              value={String(itemsPerPage)}
+              onChange={(event) => {
+                setItemsPerPage(Number.parseInt(event.target.value, 10));
+                setCurrentPage(1);
+              }}
+              className="dashboard-input rounded-md px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45"
+            >
+              {ITEMS_PER_PAGE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="dashboard-faint text-sm">{totalItems} candidature(s)</p>
+        </div>
         <div className="flex items-center gap-1">
           <button
             type="button"

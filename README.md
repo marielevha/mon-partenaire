@@ -296,6 +296,17 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
   - remplacement `middleware.ts` par `proxy.ts`,
   - script dev forcé en Webpack (`pnpm dev -> next dev --webpack`) pour contourner des crashes Turbopack observés.
 
+## Mise à jour récente (UX logs & pagination)
+
+- Dashboard logs (`/dashboard/logs`):
+  - filtres passés en mode auto-application (sans bouton `Appliquer`),
+  - application immédiate sur selects/dates, debounce sur recherche texte,
+  - pagination enrichie au format `Précédent 1 2 ... Suivant`,
+  - sélecteur `Par page` déplacé en bas du tableau (côté gauche).
+- Dashboard candidatures (`/dashboard/projects/applications`):
+  - allègement du footer pagination (suppression du compteur de plage `x-y sur z`),
+  - maintien du sélecteur `Lignes` et du total des candidatures en bas.
+
 ## Mise à jour récente (Profil dashboard, mobile & pilotage)
 
 - Landing page mobile:
