@@ -14,6 +14,7 @@ import {
 import { DashboardNotificationsMenu } from "@/components/dashboard/DashboardNotificationsMenu";
 import { RBAC_PERMISSIONS } from "@/src/lib/rbac/permissions";
 import { getUserRbacSnapshot } from "@/src/lib/rbac/core";
+import { SessionInactivityGuard } from "@/components/auth/SessionInactivityGuard";
 
 export default async function DashboardLayout({
   children,
@@ -55,9 +56,14 @@ export default async function DashboardLayout({
     listDashboardNotificationsForUser(session.user.id, { limit: 6 }),
     getDashboardUnreadNotificationsCount(session.user.id),
   ]);
+  const idleTimeoutMinutes = Number.parseInt(
+    process.env.SESSION_IDLE_TIMEOUT_MINUTES || "30",
+    10
+  );
 
   return (
     <div id="dashboard-shell-root" className="dashboard-shell min-h-screen">
+      <SessionInactivityGuard enabled timeoutMinutes={idleTimeoutMinutes} />
       <aside className="dashboard-sidebar fixed inset-y-0 left-0 z-30 hidden w-72 border-r xl:flex xl:flex-col xl:overflow-hidden">
         <div className="dashboard-divider border-b px-6 py-6">
           <DashboardBrand />

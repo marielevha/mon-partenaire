@@ -69,6 +69,9 @@ LOG_FILE_ENABLED=false
 LOG_FILE_PATH=./logs/app.log
 LOG_FILE_MAX_SIZE_MB=20
 LOG_FILE_MAX_FILES=10
+
+# session utilisateur: déconnexion auto après inactivité (minutes)
+SESSION_IDLE_TIMEOUT_MINUTES=30
 ```
 
 ## Notifications email (projets incohérents)
