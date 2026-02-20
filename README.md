@@ -69,6 +69,9 @@ LOG_FILE_ENABLED=false
 LOG_FILE_PATH=./logs/app.log
 LOG_FILE_MAX_SIZE_MB=20
 LOG_FILE_MAX_FILES=10
+
+# session utilisateur: déconnexion auto après inactivité (minutes)
+SESSION_IDLE_TIMEOUT_MINUTES=30
 ```
 
 ## Notifications email (projets incohérents)
@@ -257,6 +260,55 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Correctif état session dans le header public:
   - après déconnexion, le dropdown utilisateur n'est plus affiché,
   - les boutons `Se connecter` et `Créer un compte` apparaissent correctement.
+
+## Mise à jour récente (Candidatures & adhésion)
+
+- Nouveau workflow candidature/adhésion:
+  - création des tables `ProjectNeedApplication` et `ProjectMember`,
+  - statuts de candidature (`PENDING`, `ACCEPTED`, `REJECTED`, `WITHDRAWN`),
+  - statuts membre (`ACTIVE`, `INACTIVE`),
+  - script SQL idempotent: `supabase/project_need_applications.sql`.
+- Renforcement schéma besoins:
+  - support de `ProjectNeed.requiredCount`,
+  - script SQL: `supabase/project_needs_upgrade.sql`.
+- Candidature côté page détail projet:
+  - formulaire par type de besoin (`FINANCIAL`, `SKILL`, `MATERIAL`, `PARTNERSHIP`),
+  - validations métier serveur et anti-doublon en attente,
+  - blocage auto-candidature propriétaire et besoins déjà comblés,
+  - champ `%` proposé prérempli depuis le besoin et verrouillé en lecture seule,
+  - champ `Profils proposés` prérempli depuis le besoin (SKILL) et verrouillé en lecture seule.
+- Traitement en back-office:
+  - page dashboard: `/dashboard/projects/applications`,
+  - actions `Accepter` / `Refuser` avec note de décision,
+  - création/activation de membre projet lors d'une acceptation,
+  - mise à jour automatique du besoin (`isFilled`) selon progression,
+  - archivage automatique projet si conditions de clôture remplies.
+- Notifications:
+  - notification dashboard au porteur à la réception d'une candidature,
+  - notification dashboard au candidat après décision,
+  - emails optionnels (Resend) pour création candidature et décision.
+- Filtrage dashboard amélioré:
+  - filtre `Statut`,
+  - filtre `Affichage`: `Toutes les candidatures`, `Mes candidatures`, `Autres candidatures`,
+  - chargement des candidatures où l'utilisateur est porteur et/ou candidat (selon permissions).
+- Robustesse:
+  - messages d'erreur clarifiés sur initialisation schéma,
+  - correction SQL sur l'action de décision,
+  - fallback si colonne `requiredCount` absente pour éviter les blocages.
+- Migration Next.js 16:
+  - remplacement `middleware.ts` par `proxy.ts`,
+  - script dev forcé en Webpack (`pnpm dev -> next dev --webpack`) pour contourner des crashes Turbopack observés.
+
+## Mise à jour récente (UX logs & pagination)
+
+- Dashboard logs (`/dashboard/logs`):
+  - filtres passés en mode auto-application (sans bouton `Appliquer`),
+  - application immédiate sur selects/dates, debounce sur recherche texte,
+  - pagination enrichie au format `Précédent 1 2 ... Suivant`,
+  - sélecteur `Par page` déplacé en bas du tableau (côté gauche).
+- Dashboard candidatures (`/dashboard/projects/applications`):
+  - allègement du footer pagination (suppression du compteur de plage `x-y sur z`),
+  - maintien du sélecteur `Lignes` et du total des candidatures en bas.
 
 ## Mise à jour récente (Profil dashboard, mobile & pilotage)
 

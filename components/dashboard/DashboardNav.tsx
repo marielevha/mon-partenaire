@@ -33,6 +33,7 @@ type IconName =
   | "logs"
   | "bell"
   | "projects"
+  | "users"
   | "plus"
   | "documents"
   | "upload"
@@ -100,6 +101,15 @@ const navGroups: NavGroup[] = [
     label: "Projets",
     items: [
       {
+        href: "/dashboard/projects/applications",
+        label: "Candidatures",
+        icon: "users",
+        requiredPermission: "dashboard.projects.read",
+        isActive: (pathname: string) =>
+          normalizePathname(pathname) === "/dashboard/projects/applications" ||
+          normalizePathname(pathname).startsWith("/dashboard/projects/applications/"),
+      },
+      {
         href: "/dashboard/projects",
         label: "Mes projets",
         icon: "projects",
@@ -107,7 +117,8 @@ const navGroups: NavGroup[] = [
         isActive: (pathname: string) =>
           normalizePathname(pathname) === "/dashboard/projects" ||
           (normalizePathname(pathname).startsWith("/dashboard/projects/") &&
-            !normalizePathname(pathname).startsWith("/dashboard/projects/new")),
+            !normalizePathname(pathname).startsWith("/dashboard/projects/new") &&
+            !normalizePathname(pathname).startsWith("/dashboard/projects/applications")),
       },
       {
         href: "/dashboard/projects/new",
@@ -222,6 +233,16 @@ function MenuItemIcon({ icon }: { icon: IconName }) {
         <rect x="11" y="3.5" width="6" height="6" rx="1.5" />
         <rect x="3" y="11" width="6" height="6" rx="1.5" />
         <rect x="11" y="11" width="6" height="6" rx="1.5" />
+      </svg>
+    );
+  }
+  if (icon === "users") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <circle cx="7" cy="7" r="2.5" />
+        <circle cx="13.5" cy="8.2" r="2" />
+        <path d="M3.5 15c.4-2.2 2.1-3.4 4.4-3.4h.2c2.3 0 4 1.2 4.4 3.4" />
+        <path d="M12.3 14.8c.2-1.3 1.1-2.1 2.5-2.1h.1c1.3 0 2.2.8 2.4 2.1" />
       </svg>
     );
   }

@@ -9,12 +9,43 @@ type NotifyProjectInconsistencyEmailInput = {
   triggeredByUserId: string;
 };
 
+type NotifyNeedApplicationCreatedEmailInput = {
+  to: string;
+  recipientName?: string | null;
+  projectId: string;
+  projectTitle: string;
+  needTitle: string;
+  needType: string;
+  applicantName?: string | null;
+  applicantEmail?: string | null;
+  message?: string | null;
+  triggeredByUserId: string;
+};
+
+type NotifyNeedApplicationDecisionEmailInput = {
+  to: string;
+  recipientName?: string | null;
+  projectId: string;
+  projectTitle: string;
+  needTitle: string;
+  decision: "ACCEPTED" | "REJECTED";
+  decisionNote?: string | null;
+  triggeredByUserId: string;
+};
+
 type ResendResponse = {
   id?: string;
   error?: {
     message?: string;
     name?: string;
   };
+};
+
+type GenericResendEmailInput = {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
 };
 
 function normalizeBoolean(value: string | undefined) {
@@ -111,7 +142,7 @@ function buildEmailText(input: NotifyProjectInconsistencyEmailInput) {
   ].join("\n");
 }
 
-async function sendWithResend(input: NotifyProjectInconsistencyEmailInput) {
+async function sendGenericWithResend(input: GenericResendEmailInput) {
   const config = getEmailConfig();
   if (!config.resendApiKey) {
     return {
@@ -137,9 +168,9 @@ async function sendWithResend(input: NotifyProjectInconsistencyEmailInput) {
       from: config.from,
       to: [input.to],
       ...(config.replyTo ? { reply_to: config.replyTo } : {}),
-      subject: `Action requise: corriger le projet "${input.projectTitle}"`,
-      text: buildEmailText(input),
-      html: buildEmailHtml(input),
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
     }),
   });
 
@@ -160,9 +191,16 @@ async function sendWithResend(input: NotifyProjectInconsistencyEmailInput) {
   } as const;
 }
 
-export async function sendProjectInconsistencyNotificationEmail(
-  input: NotifyProjectInconsistencyEmailInput
-) {
+async function sendWithResend(input: NotifyProjectInconsistencyEmailInput) {
+  return sendGenericWithResend({
+    to: input.to,
+    subject: `Action requise: corriger le projet "${input.projectTitle}"`,
+    text: buildEmailText(input),
+    html: buildEmailHtml(input),
+  });
+}
+
+async function sendDashboardEmail(input: GenericResendEmailInput) {
   const config = getEmailConfig();
   if (!config.enabled) {
     return {
@@ -180,7 +218,7 @@ export async function sendProjectInconsistencyNotificationEmail(
     } as const;
   }
 
-  const result = await sendWithResend(input);
+  const result = await sendGenericWithResend(input);
   if (!result.sent) {
     return {
       sent: false,
@@ -195,4 +233,133 @@ export async function sendProjectInconsistencyNotificationEmail(
     provider: "resend",
     providerMessageId: result.providerMessageId,
   } as const;
+}
+
+export async function sendProjectInconsistencyNotificationEmail(
+  input: NotifyProjectInconsistencyEmailInput
+) {
+  return sendDashboardEmail({
+    to: input.to,
+    subject: `Action requise: corriger le projet "${input.projectTitle}"`,
+    text: buildEmailText(input),
+    html: buildEmailHtml(input),
+  });
+}
+
+export async function sendNeedApplicationCreatedEmail(
+  input: NotifyNeedApplicationCreatedEmailInput
+) {
+  const baseUrl = getBaseUrl();
+  const editUrl = `${baseUrl}/dashboard/projects/${input.projectId}/edit`;
+  const applicationsUrl = `${baseUrl}/dashboard/projects/applications`;
+  const recipient = input.recipientName?.trim() || "Bonjour";
+  const applicant =
+    input.applicantName?.trim() || input.applicantEmail?.trim() || "Un utilisateur";
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.55; color: #0f172a;">
+      <p>${escapeHtml(recipient)},</p>
+      <p>
+        Nouvelle candidature sur le projet <strong>${escapeHtml(
+          input.projectTitle
+        )}</strong>.
+      </p>
+      <p>
+        Besoin: <strong>${escapeHtml(input.needTitle)}</strong> (${escapeHtml(input.needType)})
+      </p>
+      <p>
+        Candidat: <strong>${escapeHtml(applicant)}</strong>
+      </p>
+      ${
+        input.message?.trim()
+          ? `<p>Message: ${escapeHtml(input.message.trim())}</p>`
+          : ""
+      }
+      <p>Actions recommandées:</p>
+      <ul>
+        <li><a href="${applicationsUrl}">Ouvrir la file des candidatures</a></li>
+        <li><a href="${editUrl}">Modifier le projet</a></li>
+      </ul>
+      <p style="margin-top: 16px; color: #475569;">
+        Notification envoyée depuis la page publique (utilisateur: ${escapeHtml(
+          input.triggeredByUserId
+        )}).
+      </p>
+    </div>
+  `;
+
+  const text = [
+    `${recipient},`,
+    "",
+    `Nouvelle candidature sur le projet "${input.projectTitle}".`,
+    `Besoin: ${input.needTitle} (${input.needType})`,
+    `Candidat: ${applicant}`,
+    input.message?.trim() ? `Message: ${input.message.trim()}` : null,
+    "",
+    "Actions recommandées:",
+    `- Ouvrir la file des candidatures: ${applicationsUrl}`,
+    `- Modifier le projet: ${editUrl}`,
+    "",
+    `Notification envoyée depuis la page publique (utilisateur: ${input.triggeredByUserId}).`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return sendDashboardEmail({
+    to: input.to,
+    subject: `Nouvelle candidature sur "${input.projectTitle}"`,
+    text,
+    html,
+  });
+}
+
+export async function sendNeedApplicationDecisionEmail(
+  input: NotifyNeedApplicationDecisionEmailInput
+) {
+  const baseUrl = getBaseUrl();
+  const detailUrl = `${baseUrl}/projects/${input.projectId}`;
+  const recipient = input.recipientName?.trim() || "Bonjour";
+  const decisionLabel = input.decision === "ACCEPTED" ? "acceptée" : "refusée";
+
+  const html = `
+    <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.55; color: #0f172a;">
+      <p>${escapeHtml(recipient)},</p>
+      <p>
+        Votre candidature sur le projet <strong>${escapeHtml(
+          input.projectTitle
+        )}</strong> pour le besoin <strong>${escapeHtml(input.needTitle)}</strong> a été
+        <strong>${decisionLabel}</strong>.
+      </p>
+      ${
+        input.decisionNote?.trim()
+          ? `<p>Note du porteur: ${escapeHtml(input.decisionNote.trim())}</p>`
+          : ""
+      }
+      <p><a href="${detailUrl}">Voir le projet</a></p>
+      <p style="margin-top: 16px; color: #475569;">
+        Notification décision envoyée par l'espace membre (utilisateur: ${escapeHtml(
+          input.triggeredByUserId
+        )}).
+      </p>
+    </div>
+  `;
+
+  const text = [
+    `${recipient},`,
+    "",
+    `Votre candidature sur le projet "${input.projectTitle}" pour le besoin "${input.needTitle}" a été ${decisionLabel}.`,
+    input.decisionNote?.trim() ? `Note du porteur: ${input.decisionNote.trim()}` : null,
+    `Voir le projet: ${detailUrl}`,
+    "",
+    `Notification décision envoyée par l'espace membre (utilisateur: ${input.triggeredByUserId}).`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return sendDashboardEmail({
+    to: input.to,
+    subject: `Décision candidature: ${input.projectTitle}`,
+    text,
+    html,
+  });
 }

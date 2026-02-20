@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 const REQUEST_ID_HEADER =
   process.env.LOG_REQUEST_ID_HEADER?.trim().toLowerCase() || "x-request-id";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const requestId = request.headers.get(REQUEST_ID_HEADER) || crypto.randomUUID();
 
   const requestHeaders = new Headers(request.headers);
@@ -21,5 +21,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  // Do not intercept any Next.js internals (HMR, dev tooling, assets).
+  matcher: ["/((?!_next|favicon.ico|.*\\..*).*)"],
 };

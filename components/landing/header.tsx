@@ -6,6 +6,7 @@ import { HeaderClient } from "@/components/landing/header-client";
 import { HeaderNav } from "@/components/landing/header-nav";
 import { LocaleSwitcher } from "@/components/landing/locale-switcher";
 import { MobileHeaderMenu } from "@/components/landing/mobile-header-menu";
+import { SessionInactivityGuard } from "@/components/auth/SessionInactivityGuard";
 import { getSessionAction } from "@/app/auth/actions";
 import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 import { getCurrentLocale, getI18n } from "@/src/i18n";
@@ -15,6 +16,10 @@ export async function Header() {
   const messages = await getI18n(locale);
   const headerMessages = messages.header;
   const session = await getSessionAction();
+  const idleTimeoutMinutes = Number.parseInt(
+    process.env.SESSION_IDLE_TIMEOUT_MINUTES || "30",
+    10
+  );
   let fullName: string | null = null;
 
   if (session?.user?.id) {
@@ -31,8 +36,12 @@ export async function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
-      <Container className="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-4">
+    <>
+      {session?.user?.id ? (
+        <SessionInactivityGuard enabled timeoutMinutes={idleTimeoutMinutes} />
+      ) : null}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
+        <Container className="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-4">
         <Link href="/" className="flex items-center gap-3 text-lg font-semibold">
           <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-gradient-to-br from-accent to-accent-secondary text-white shadow-soft">
             <Image
@@ -106,7 +115,8 @@ export async function Header() {
             />
           </div>
         </div>
-      </Container>
-    </header>
+        </Container>
+      </header>
+    </>
   );
 }

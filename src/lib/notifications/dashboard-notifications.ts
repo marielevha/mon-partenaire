@@ -3,7 +3,10 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-export type DashboardNotificationType = "project_inconsistency";
+export type DashboardNotificationType =
+  | "project_inconsistency"
+  | "project_need_application"
+  | "project_need_application_decision";
 
 export type DashboardNotification = {
   id: string;
