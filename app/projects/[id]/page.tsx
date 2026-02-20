@@ -15,6 +15,8 @@ import {
   buildProjectImagePublicUrl,
   getProjectNeedsByProjectId,
 } from "@/src/lib/projects";
+import { getLatestNeedApplicationStatusesForUser } from "@/src/lib/project-need-applications";
+import { createSupabaseServerClient } from "@/src/lib/supabase/server";
 
 type Props = {
   params: { id: string };
@@ -253,6 +255,15 @@ export default async function ProjectDetailPage({ params }: Props) {
   const projectDocuments = await getProjectDocumentsById(project.id);
   const projectNeeds = await getProjectNeedsByProjectId(project.id);
   const ownerEquityPercentRaw = await getProjectOwnerEquityPercentById(project.id);
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const viewerUserId = session?.user?.id ?? null;
+  const isProjectOwner = viewerUserId === project.ownerId;
+  const applicationStatusByNeedId = viewerUserId
+    ? await getLatestNeedApplicationStatusesForUser(project.id, viewerUserId)
+    : {};
 
   const uploadedImages = project.images
     .map((image) => buildProjectImagePublicUrl(image.storagePath))
@@ -641,7 +652,14 @@ export default async function ProjectDetailPage({ params }: Props) {
                   </div>
                 </div>
 
-                <NeedsSection needs={projectNeeds} formatMoney={formatMoney} />
+                <NeedsSection
+                  projectId={project.id}
+                  needs={projectNeeds}
+                  formatMoney={formatMoney}
+                  isAuthenticated={Boolean(viewerUserId)}
+                  isProjectOwner={isProjectOwner}
+                  applicationStatusByNeedId={applicationStatusByNeedId}
+                />
               </Card>
             </div>
 

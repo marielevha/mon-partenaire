@@ -1,4 +1,5 @@
 import { projectNeedTypeLabel } from "@/src/lib/project-needs";
+import { NeedApplicationForm } from "@/components/projects/NeedApplicationForm";
 
 export type ProjectNeedView = {
   id: string;
@@ -15,9 +16,20 @@ export type ProjectNeedView = {
 type NeedCardProps = {
   need: ProjectNeedView;
   formatMoney: (amount?: number | null) => string;
+  projectId: string;
+  isAuthenticated: boolean;
+  isProjectOwner: boolean;
+  existingApplicationStatus?: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
 };
 
-export function NeedCard({ need, formatMoney }: NeedCardProps) {
+export function NeedCard({
+  need,
+  formatMoney,
+  projectId,
+  isAuthenticated,
+  isProjectOwner,
+  existingApplicationStatus,
+}: NeedCardProps) {
   const typeLabel = projectNeedTypeLabel(need.type);
 
   return (
@@ -78,9 +90,21 @@ export function NeedCard({ need, formatMoney }: NeedCardProps) {
           ) : null}
         </div>
       </div>
+
+      <NeedApplicationForm
+        projectId={projectId}
+        projectNeedId={need.id}
+        needType={need.type}
+        needTitle={need.title}
+        ownerDefinedEquityPercent={need.equityPercent ?? null}
+        ownerDefinedRequiredCount={need.requiredCount ?? null}
+        isNeedFilled={need.isFilled}
+        isAuthenticated={isAuthenticated}
+        isProjectOwner={isProjectOwner}
+        existingStatus={existingApplicationStatus}
+      />
     </div>
   );
 }
 
 export default NeedCard;
-

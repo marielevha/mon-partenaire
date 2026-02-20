@@ -2,11 +2,25 @@ import { PROJECT_NEED_TYPES, PROJECT_NEED_TYPE_LABELS } from "@/src/lib/project-
 import { NeedCard, type ProjectNeedView } from "@/components/projects/NeedCard";
 
 type NeedsSectionProps = {
+  projectId: string;
   needs: ProjectNeedView[];
   formatMoney: (amount?: number | null) => string;
+  isAuthenticated: boolean;
+  isProjectOwner: boolean;
+  applicationStatusByNeedId?: Record<
+    string,
+    "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN"
+  >;
 };
 
-export function NeedsSection({ needs, formatMoney }: NeedsSectionProps) {
+export function NeedsSection({
+  projectId,
+  needs,
+  formatMoney,
+  isAuthenticated,
+  isProjectOwner,
+  applicationStatusByNeedId = {},
+}: NeedsSectionProps) {
   if (needs.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-secondary">
@@ -37,7 +51,15 @@ export function NeedsSection({ needs, formatMoney }: NeedsSectionProps) {
             </div>
             <div className="space-y-3">
               {group.map((need) => (
-                <NeedCard key={need.id} need={need} formatMoney={formatMoney} />
+                <NeedCard
+                  key={need.id}
+                  need={need}
+                  formatMoney={formatMoney}
+                  projectId={projectId}
+                  isAuthenticated={isAuthenticated}
+                  isProjectOwner={isProjectOwner}
+                  existingApplicationStatus={applicationStatusByNeedId[need.id]}
+                />
               ))}
             </div>
           </section>
@@ -48,4 +70,3 @@ export function NeedsSection({ needs, formatMoney }: NeedsSectionProps) {
 }
 
 export default NeedsSection;
-
